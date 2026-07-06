@@ -13,20 +13,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
-import urllib.parse as _up
-import asyncpg
 from dotenv import load_dotenv
 from fastapi import APIRouter, FastAPI, HTTPException
+from psycopg_pool import AsyncConnectionPool
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.middleware.cors import CORSMiddleware
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
-_raw_db_url = os.environ["DATABASE_URL"]
-# Strip query params — asyncpg doesn't understand libpq params like sslmode & channel_binding
-_parsed = _up.urlparse(_raw_db_url)
-DATABASE_URL = _parsed._replace(query="").geturl().rstrip("?")
+DATABASE_URL = os.environ["DATABASE_URL"]
 db_pool = None
 
 app = FastAPI(title="Auction Ledger")
@@ -91,11 +87,43 @@ CREATE TABLE IF NOT EXISTS extra_charges (
 """
 
 
+# ---------------------------------------------------------------------------
+# psycopg helper wrappers (mimic asyncpg API)
+# ---------------------------------------------------------------------------
+async def _fetch(sql, *args):
+    async with db_pool.connection() as conn:
+        cur = await conn.execute(sql, args)
+        return [dict(r) for r in await cur.fetchall()]
+
+
+async def _fetchrow(sql, *args):
+    async with db_pool.connection() as conn:
+        cur = await conn.execute(sql, args)
+        r = await cur.fetchone()
+        return dict(r) if r else None
+
+
+async def _execute(sql, *args):
+    async with db_pool.connection() as conn:
+        cur = await conn.execute(sql, args)
+        return cur.statusmessage
+
+
+async def _fetchval(sql, *args):
+    async with db_pool.connection() as conn:
+        cur = await conn.execute(sql, args)
+        r = await cur.fetchone()
+        return r[0] if r else None
+
+
+# ---------------------------------------------------------------------------
+# Startup / shutdown
+# ---------------------------------------------------------------------------
 @app.on_event("startup")
 async def startup():
     global db_pool
-    db_pool = await asyncpg.create_pool(DATABASE_URL, min_size=1, max_size=5)
-    async with db_pool.acquire() as conn:
+    db_pool = AsyncConnectionPool(DATABASE_URL, min_size=1, max_size=5, open=True)
+    async with db_pool.connection() as conn:
         for stmt in TABLES_SQL.split(";"):
             s = stmt.strip()
             if s:
@@ -228,10 +256,8 @@ class ExtraChargeCreate(BaseModel):
 def _register_crud(table_name, model, create_model, update_model=None):
     @api.get(f"/{table_name}", response_model=List[model])
     async def list_items():
-        rows = await db_pool.fetch(
-            f'SELECT * FROM "{table_name}" ORDER BY created_date DESC'
-        )
-        return [dict(row) for row in rows]
+        rows = await _fetch(f'SELECT * FROM "{table_name}" ORDER BY created_date DESC')
+        return rows
 
     @api.post(f"/{table_name}", response_model=model)
     async def create_item(payload: create_model):
@@ -239,9 +265,9 @@ def _register_crud(table_name, model, create_model, update_model=None):
         data = obj.model_dump()
         cols = list(data.keys())
         vals = list(data.values())
-        placeholders = ",".join(f"${i+1}" for i in range(len(cols)))
         quoted_cols = ",".join(f'"{c}"' for c in cols)
-        await db_pool.execute(
+        placeholders = ",".join("%s" for _ in cols)
+        await _execute(
             f'INSERT INTO "{table_name}" ({quoted_cols}) VALUES ({placeholders})',
             *vals,
         )
@@ -249,45 +275,38 @@ def _register_crud(table_name, model, create_model, update_model=None):
 
     @api.get(f"/{table_name}/{{item_id}}", response_model=model)
     async def get_item(item_id: str):
-        row = await db_pool.fetchrow(
-            f'SELECT * FROM "{table_name}" WHERE id = $1', item_id
-        )
+        row = await _fetchrow(f'SELECT * FROM "{table_name}" WHERE id = %s', item_id)
         if not row:
             raise HTTPException(404, "Not found")
-        return dict(row)
+        return row
 
     if update_model is not None:
-
         @api.patch(f"/{table_name}/{{item_id}}", response_model=model)
         async def update_item(item_id: str, payload: update_model):
             updates = {k: v for k, v in payload.model_dump().items() if v is not None}
             if not updates:
-                row = await db_pool.fetchrow(
-                    f'SELECT * FROM "{table_name}" WHERE id = $1', item_id
-                )
+                row = await _fetchrow(f'SELECT * FROM "{table_name}" WHERE id = %s', item_id)
                 if not row:
                     raise HTTPException(404, "Not found")
-                return dict(row)
-            set_clauses = " , ".join(
-                f'"{k}" = ${i+2}' for i, k in enumerate(updates.keys())
-            )
+                return row
+            set_clauses = " , ".join(f'"{k}" = %s' for k in updates.keys())
             vals = list(updates.values())
-            row = await db_pool.fetchrow(
-                f'UPDATE "{table_name}" SET {set_clauses} WHERE id = $1 RETURNING *',
-                item_id,
-                *vals,
-            )
-            if not row:
+            async with db_pool.connection() as conn:
+                cur = await conn.execute(
+                    f'UPDATE "{table_name}" SET {set_clauses} WHERE id = %s RETURNING *',
+                    (*vals, item_id),
+                )
+                r = await cur.fetchone()
+            if not r:
                 raise HTTPException(404, "Not found")
-            return dict(row)
+            return dict(r)
 
     @api.delete(f"/{table_name}/{{item_id}}")
     async def delete_item(item_id: str):
-        result = await db_pool.execute(
-            f'DELETE FROM "{table_name}" WHERE id = $1', item_id
-        )
-        if result == "DELETE 0":
-            raise HTTPException(404, "Not found")
+        async with db_pool.connection() as conn:
+            cur = await conn.execute(f'DELETE FROM "{table_name}" WHERE id = %s', (item_id,))
+            if cur.rowcount == 0:
+                raise HTTPException(404, "Not found")
         return {"ok": True}
 
 
@@ -303,28 +322,23 @@ _register_crud("extra_charges", ExtraCharge, ExtraChargeCreate)
 # ---------------------------------------------------------------------------
 @api.get("/snapshot")
 async def snapshot():
-    async with db_pool.acquire() as conn:
-        customers = await conn.fetch(
-            'SELECT * FROM "customers" ORDER BY first_name ASC'
-        )
-        products = await conn.fetch(
-            'SELECT * FROM "products" ORDER BY sort_order ASC'
-        )
-        sales = await conn.fetch(
-            'SELECT * FROM "sales" ORDER BY created_date DESC'
-        )
-        payments = await conn.fetch(
-            'SELECT * FROM "payments" ORDER BY created_date DESC'
-        )
-        extras = await conn.fetch(
-            'SELECT * FROM "extra_charges" ORDER BY created_date DESC'
-        )
+    async with db_pool.connection() as conn:
+        cur = await conn.execute('SELECT * FROM "customers" ORDER BY first_name ASC')
+        customers = [dict(r) for r in await cur.fetchall()]
+        cur = await conn.execute('SELECT * FROM "products" ORDER BY sort_order ASC')
+        products = [dict(r) for r in await cur.fetchall()]
+        cur = await conn.execute('SELECT * FROM "sales" ORDER BY created_date DESC')
+        sales = [dict(r) for r in await cur.fetchall()]
+        cur = await conn.execute('SELECT * FROM "payments" ORDER BY created_date DESC')
+        payments = [dict(r) for r in await cur.fetchall()]
+        cur = await conn.execute('SELECT * FROM "extra_charges" ORDER BY created_date DESC')
+        extras = [dict(r) for r in await cur.fetchall()]
     return {
-        "customers": [dict(r) for r in customers],
-        "products": [dict(r) for r in products],
-        "sales": [dict(r) for r in sales],
-        "payments": [dict(r) for r in payments],
-        "extra_charges": [dict(r) for r in extras],
+        "customers": customers,
+        "products": products,
+        "sales": sales,
+        "payments": payments,
+        "extra_charges": extras,
     }
 
 
@@ -356,35 +370,37 @@ SAMPLE_PRODUCTS = [
 async def seed():
     inserted = {"customers": 0, "products": 0, "sales": 0, "payments": 0, "extra_charges": 0}
 
-    async with db_pool.acquire() as conn:
-        if await conn.fetchval('SELECT COUNT(*) FROM "customers"') == 0:
+    async with db_pool.connection() as conn:
+        cur = await conn.execute('SELECT COUNT(*) FROM "customers"')
+        if (await cur.fetchone())[0] == 0:
             for first, last, phone in SAMPLE_CUSTOMERS:
                 c = Customer(first_name=first, last_name=last, phone=phone)
                 d = c.model_dump()
                 cols = ",".join(f'"{k}"' for k in d)
-                ph = ",".join(f"${i+1}" for i in range(len(d)))
+                ph = ",".join("%s" for _ in d)
                 await conn.execute(
-                    f'INSERT INTO "customers" ({cols}) VALUES ({ph})', *d.values()
+                    f'INSERT INTO "customers" ({cols}) VALUES ({ph})', tuple(d.values())
                 )
                 inserted["customers"] += 1
 
-        if await conn.fetchval('SELECT COUNT(*) FROM "products"') == 0:
+        cur = await conn.execute('SELECT COUNT(*) FROM "products"')
+        if (await cur.fetchone())[0] == 0:
             for p in SAMPLE_PRODUCTS:
                 prod = Product(**p)
                 d = prod.model_dump()
                 cols = ",".join(f'"{k}"' for k in d)
-                ph = ",".join(f"${i+1}" for i in range(len(d)))
+                ph = ",".join("%s" for _ in d)
                 await conn.execute(
-                    f'INSERT INTO "products" ({cols}) VALUES ({ph})', *d.values()
+                    f'INSERT INTO "products" ({cols}) VALUES ({ph})', tuple(d.values())
                 )
                 inserted["products"] += 1
 
-        if await conn.fetchval('SELECT COUNT(*) FROM "sales"') == 0:
-            rows = await conn.fetch('SELECT * FROM "customers"')
-            customers = [dict(r) for r in rows]
+        cur = await conn.execute('SELECT COUNT(*) FROM "sales"')
+        if (await cur.fetchone())[0] == 0:
+            cur = await conn.execute('SELECT * FROM "customers"')
+            customers = [dict(r) for r in await cur.fetchall()]
             if customers:
                 import datetime as _dt
-
                 today = _dt.date.today()
                 offset_to_sat = (5 - today.weekday()) % 7
                 last_sat = today + _dt.timedelta(days=offset_to_sat - 7)
@@ -417,9 +433,9 @@ async def seed():
                         )
                         d = sale.model_dump()
                         cols = ",".join(f'"{k}"' for k in d)
-                        ph = ",".join(f"${i+1}" for i in range(len(d)))
+                        ph = ",".join("%s" for _ in d)
                         await conn.execute(
-                            f'INSERT INTO "sales" ({cols}) VALUES ({ph})', *d.values()
+                            f'INSERT INTO "sales" ({cols}) VALUES ({ph})', tuple(d.values())
                         )
                         inserted["sales"] += 1
 
@@ -433,9 +449,9 @@ async def seed():
                     )
                     d = pay.model_dump()
                     cols = ",".join(f'"{k}"' for k in d)
-                    ph = ",".join(f"${i+1}" for i in range(len(d)))
+                    ph = ",".join("%s" for _ in d)
                     await conn.execute(
-                        f'INSERT INTO "payments" ({cols}) VALUES ({ph})', *d.values()
+                        f'INSERT INTO "payments" ({cols}) VALUES ({ph})', tuple(d.values())
                     )
                     inserted["payments"] += 1
 
@@ -448,9 +464,9 @@ async def seed():
                 )
                 d = extra.model_dump()
                 cols = ",".join(f'"{k}"' for k in d)
-                ph = ",".join(f"${i+1}" for i in range(len(d)))
+                ph = ",".join("%s" for _ in d)
                 await conn.execute(
-                    f'INSERT INTO "extra_charges" ({cols}) VALUES ({ph})', *d.values()
+                    f'INSERT INTO "extra_charges" ({cols}) VALUES ({ph})', tuple(d.values())
                 )
                 inserted["extra_charges"] += 1
 
@@ -459,7 +475,7 @@ async def seed():
 
 @api.post("/wipe")
 async def wipe():
-    async with db_pool.acquire() as conn:
+    async with db_pool.connection() as conn:
         for name in ["customers", "products", "sales", "payments", "extra_charges"]:
             await conn.execute(f'DELETE FROM "{name}"')
     return {"ok": True}
