@@ -2,6 +2,7 @@ import logging
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from urllib.parse import urlencode
 
 import bcrypt
 import httpx
@@ -15,11 +16,9 @@ load_dotenv()
 
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
-GOOGLE_REDIRECT_URI = os.environ.get(
-    "GOOGLE_REDIRECT_URI", ""
-)
+GOOGLE_REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI", "").rstrip("/")
 JWT_SECRET = os.environ.get("JWT_SECRET", "")
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "").rstrip("/")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRE_HOURS = 72
 
@@ -129,8 +128,7 @@ async def google_login():
         "access_type": "offline",
         "prompt": "consent",
     }
-    qs = "&".join(f"{k}={v}" for k, v in params.items())
-    return RedirectResponse(url=f"{GOOGLE_AUTH_URL}?{qs}")
+    return RedirectResponse(url=f"{GOOGLE_AUTH_URL}?{urlencode(params)}")
 
 
 @router.get("/google/callback")
@@ -190,7 +188,7 @@ async def google_callback(code: Optional[str] = None, error: Optional[str] = Non
         )
 
     token = create_jwt(user_id, email)
-    redirect_url = f"{FRONTEND_URL}/login?token={token}"
+    redirect_url = f"{FRONTEND_URL.rstrip('/')}/login?token={token}"
     return RedirectResponse(url=redirect_url)
 
 
