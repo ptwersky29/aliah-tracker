@@ -1,0 +1,39 @@
+{
+  "summary": "First test cycle for the rebuilt Yiddish Auction Ledger (Pinkas Hamakhires). Backend has 15 pytest cases — all 15 PASSED (health, seed idempotency, snapshot shape, full CRUD for customers/products/sales/payments/extra_charges including 404 + 422 validation paths). Frontend e2e via Playwright covered Dashboard, Sales (auction mode + list mode), Customers (add+search), Products, Calendar, Transactions. RTL layout verified (dir=rtl, sidebar fixed on RIGHT at x=1640, width=280). Sales flow end-to-end works: ShabbosPicker opens with 48 weeks, aliyah-kohen selectable, customer combobox lists 10 seeded customers, save updates week-total £0→£42, Undo reverts to £0. Customer add flow works and search finds the new row. 17 standard aliyos shown on Products page.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Transactions (/transactions)", "issues": ["Date inputs use raw HTML5 mm/dd/yyyy browser picker instead of a styled / shadcn-based calendar component. Looks out of place against the burgundy/parchment aesthetic and breaks RTL feel."]},
+      {"screen": "Dashboard chart", "issues": ["Recharts ResponsiveContainer prints repeated console warnings: 'The width(-1) and height(-1) of chart should be greater than 0'. Chart still renders visually, but parent container should set minWidth/minHeight or explicit width to silence the warning."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_backend.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Optional: replace native <input type='date'> in Transactions filters with a styled date picker matching the parchment/burgundy theme.",
+    "Optional: silence Recharts width/height warnings by giving the chart container an explicit min height/width.",
+    "Note: high-debt-banner (Customers) and alerts-panel (Dashboard) testids were not rendered during testing — confirmed by code that they are conditional on balance > £200, and the seeded data does not produce a customer above that threshold. Not a bug; if you want them visible in the demo, bump a seeded sale or add an ExtraCharge so one customer exceeds £200."
+  ],
+  "critical_code_review_comments": [
+    "server.py: Sale.product_id is a free-form string — virtual 'standard aliyos' ids like 'kohen' are stored as strings and there's no DB FK or validation. This matches the design intent (frontend owns the canonical list) but could be documented in a Pydantic Field description.",
+    "server.py: _register_crud uses generic delete that returns {ok: true}; consistent across resources, no _id leak verified (projection {_id:0}). Good.",
+    "Frontend: every interactive control reviewed has data-testid. Naming is consistent (kebab-case)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_backend.py (new)",
+    "/app/test_reports/pytest/pytest_results.xml (new)"
+  ],
+  "success_rate": {"backend": "100% (15/15 pytest)", "frontend": "100% on critical flows (Dashboard, Sales auction+list, Customers add/search, Products, Calendar nav, Transactions table)"},
+  "test_credentials": "None — app has no auth.",
+  "seed_data_creation": "POST /api/seed run once during tests (idempotent). One TESTUI_* customer was added via UI add-customer flow and left in DB; safe to ignore or wipe via POST /api/wipe.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All endpoints under /api/ are open (no auth). Backend test file at /app/backend/tests/test_backend.py covers health/seed/snapshot/CRUD; rerun with: pytest /app/backend/tests/test_backend.py -v. Frontend uses REACT_APP_BACKEND_URL. Actual data-testid names diverge slightly from the review request — see /app/frontend/src/pages grep output: banner-week-total/month-total/collection-rate (not metric-total-sales), customers-search (not customer-search-input), cal-prev/cal-next (no cal-tab-* — calendar tabs lack testids; identify by Yiddish text 'חודש', 'פרשיות', 'ימים טובים', 'עליות'). high-debt-banner and alerts-panel are conditional and won't render unless a customer's balance exceeds £200."
+}

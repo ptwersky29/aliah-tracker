@@ -1,0 +1,187 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Heebo:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 20% 97%;
+    --foreground: 218 24% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 218 24% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 218 24% 11%;
+    --primary: 217 47% 22%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 218 24% 11%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+    --accent: 158 64% 39%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 73% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 217 47% 35%;
+    --radius: 8px;
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+
+  html { direction: ltr; }
+
+  body {
+    margin: 0;
+    font-family: "Plus Jakarta Sans", "Heebo", system-ui, sans-serif;
+    background-color: #F7F8FA;
+    color: #101828;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "ss01", "ss02", "cv11";
+  }
+
+  h1, h2, h3 { font-family: "Plus Jakarta Sans", "Heebo", sans-serif; letter-spacing: -0.02em; }
+
+  .tabular-nums, .font-mono { font-variant-numeric: tabular-nums; }
+  .font-hebrew { font-family: "Heebo", "Plus Jakarta Sans", sans-serif; }
+
+  ::selection { background: #2A4574; color: #fff; }
+}
+
+@layer components {
+  /* Cards */
+  .card {
+    @apply bg-surface border border-line rounded-lg shadow-card;
+  }
+  .card-lg {
+    @apply bg-surface border border-line rounded-lg shadow-cardLg;
+  }
+
+  /* Buttons */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 bg-brand-700 text-white hover:bg-brand-800 active:bg-brand-900
+           px-4 py-2.5 rounded-md text-sm font-semibold transition-colors shadow-card
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 bg-surface text-ink-900 border border-line2 hover:bg-surface2
+           px-4 py-2.5 rounded-md text-sm font-semibold transition-colors
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-success {
+    @apply inline-flex items-center justify-center gap-2 bg-emerald-600 text-white hover:bg-emerald-700
+           px-4 py-2.5 rounded-md text-sm font-semibold transition-colors shadow-card
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-warn {
+    @apply inline-flex items-center justify-center gap-2 bg-amber-500 text-white hover:bg-amber-600
+           px-4 py-2.5 rounded-md text-sm font-semibold transition-colors shadow-card
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 bg-danger-50 text-danger-700 border border-danger-500/30 hover:bg-danger-500/10
+           px-4 py-2.5 rounded-md text-sm font-semibold transition-colors;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 text-ink-500 hover:text-ink-900 hover:bg-surface2
+           px-3 py-2 rounded-md text-sm font-medium transition-colors;
+  }
+
+  /* Inputs */
+  .input {
+    @apply bg-surface border border-line2 rounded-md px-3 py-2.5 text-sm text-ink-900 placeholder:text-ink-400
+           transition-all focus:outline-none focus:border-brand-700 focus:ring-4 focus:ring-brand-700/10
+           disabled:bg-surface2 disabled:cursor-not-allowed;
+  }
+  .label {
+    @apply text-xs font-semibold text-ink-700 mb-1.5 block;
+  }
+
+  /* Tables */
+  .data-table { @apply w-full text-left border-collapse; }
+  .data-table thead th {
+    @apply text-[11px] font-semibold uppercase tracking-wider text-ink-500 py-3 px-4 border-b border-line bg-surface2/40;
+  }
+  .data-table tbody tr {
+    @apply border-b border-line/60 last:border-0 transition-colors;
+  }
+  .data-table tbody tr:hover { background-color: #F7F8FA; }
+  .data-table td { @apply py-3.5 px-4 text-sm text-ink-900; }
+
+  /* Aliyah chip */
+  .chip {
+    @apply inline-flex items-center justify-center px-2.5 py-1 rounded-md text-xs font-semibold;
+    background: #EEF2F8;
+    color: #1E3258;
+    border: 1px solid #D9E2F0;
+  }
+  .chip-aliyah {
+    @apply inline-flex items-center justify-center px-2.5 py-1 rounded-md text-xs font-semibold font-hebrew;
+    background: #EEF2F8;
+    color: #1E3258;
+    border: 1px solid #D9E2F0;
+  }
+
+  /* Status badges */
+  .badge-debt {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold;
+    background: rgba(239,68,68,0.10);
+    color: #B91C1C;
+    border: 1px solid rgba(239,68,68,0.25);
+  }
+  .badge-paid {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold;
+    background: rgba(16,185,129,0.10);
+    color: #047857;
+    border: 1px solid rgba(16,185,129,0.25);
+  }
+  .badge-warn {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold;
+    background: rgba(245,158,11,0.10);
+    color: #B45309;
+    border: 1px solid rgba(245,158,11,0.25);
+  }
+  .badge-muted {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold text-ink-500 bg-surface2 border border-line;
+  }
+
+  /* Price chip */
+  .price-chip {
+    @apply font-mono text-base font-semibold py-2.5 rounded-md cursor-pointer transition-all border tabular-nums;
+    background: #FFFFFF;
+    color: #101828;
+    border-color: #D0D5DD;
+  }
+  .price-chip:hover {
+    border-color: #2A4574;
+    color: #1E3258;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(42, 69, 116, 0.10);
+  }
+  .price-chip:active { transform: translateY(0) scale(0.98); }
+  .price-chip-add {
+    background: #ECFDF5;
+    color: #047857;
+    border-color: #A7F3D0;
+  }
+  .price-chip-add:hover { border-color: #059669; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.18); }
+
+  /* Subtle section heading */
+  .kicker {
+    @apply text-[11px] font-bold uppercase tracking-[0.14em] text-brand-600;
+  }
+
+  /* Scrollbar */
+  .pretty-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+  .pretty-scroll::-webkit-scrollbar-track { background: transparent; }
+  .pretty-scroll::-webkit-scrollbar-thumb { background: #D0D5DD; border-radius: 4px; }
+  .pretty-scroll::-webkit-scrollbar-thumb:hover { background: #98A2B3; }
+}
+
+@layer base {
+  [data-debug-wrapper="true"] { display: contents !important; }
+}

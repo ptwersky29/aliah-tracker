@@ -1,0 +1,30 @@
+{
+  "summary": "Iteration 5 frontend-only test of the new ShabbosCalendarPicker popover on /sales. All 9 review-request acceptance criteria PASS: trigger renders parsha+Gregorian+Hebrew at exactly w=288px; popover opens with correct Gregorian+Hebrew month header; 7 weekday columns Sun–Sat; each day cell shows Gregorian day, Hebrew numeral, and Saturdays show parsha label; today (June 23 2026) is amber; selected Shabbos (June 27 2026) is navy-filled with white parsha; prev/next chevrons cycle months correctly (May ↔ June ↔ July 2026); July 2026 Saturdays correctly show פינחס (4), מטות-מסעי (11), דברים (18), ואתחנן (25); clicking a Saturday closes the popover, updates the trigger (פינחס · 4 יולי 2026 · י\"ט תמוז תשפ\"ו) and refreshes the Sales page parsha header to פינחס; non-Saturday cells have disabled=\"\" attribute and clicking them (forced) does NOT change selection; 'This Shabbos' button returns selection to current Shabbos (חוקת-בלק 2026-06-27); Escape closes the popover; click-outside closes the popover. Yom-tov chips render in Sept/Oct 2025 — Rosh Hashanah on 2025-09-23, Sukkos ב׳ on 2025-10-07, Shmini Atzeres on 2025-10-13, Simchas Torah on 2025-10-14. /calendar page still renders fine, and /, /customers, /products, /transactions are unaffected (no error overlays, h1 'Pinkas' present on all).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "ShabbosCalendarPicker popover header (July 2026)", "issues": ["Hebrew month label for July 2026 reads 'אב תשפ\"ו' but most of July 2026 is actually Tammuz (תמוז) — only the last ~14 days fall in Av. Root cause: the header uses days[14] (15th of Gregorian month) to pick the Hebrew month, and July 15 2026 ≈ 30 Tamuz / 1 Av so it tips into Av too early. Minor cosmetic only — does not affect parsha labels (which are correct: פינחס, מטות-מסעי, דברים, ואתחנן). Recommend: use the Hebrew month of the FIRST Shabbos of the Gregorian month, or pick whichever Hebrew month covers more days."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(LOW / cosmetic) Adjust the Hebrew-month header logic in ShabbosCalendarPicker.jsx (line 68: middleDayHebrew uses days[14]). For Gregorian months that straddle a Rosh Chodesh, day-15 may sit on the wrong side. Suggest: compute the Hebrew month that covers the majority of the visible Gregorian days, or use the first Shabbos of the month."
+  ],
+  "critical_code_review_comments": [
+    "ShabbosCalendarPicker.jsx is 208 lines, well-structured, uses memoization where appropriate, properly cleans up document event listeners (mousedown + Esc) when the popover closes. Good.",
+    "Cell text content visually shows day / Hebrew numeral / parsha in 3 separate elements, but text_content() concatenates them (e.g. '4י\"טפינחס'). For accessibility consider aria-label on each <button> cell that combines them in a readable form, e.g. aria-label='Saturday July 4 2026 · 19 Tamuz · Parshas Pinchas'.",
+    "Non-Saturday cells correctly use the native disabled attribute (`disabled={!clickable}`) — accessibility good, prevents keyboard activation.",
+    "'This Shabbos' button updates selection but keeps the popover open. This is a UX choice — not a bug. Consider closing the popover too for parity with cell-click behaviour.",
+    "Outside-click detector uses mousedown on document which is correct and avoids the React synthetic-event race condition."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only run)", "frontend": "100% (9/9 acceptance criteria PASS, 1 minor cosmetic noted)"},
+  "test_credentials": "n/a",
+  "seed_data_creation": "None — selection changes only client-side state; no DB writes performed in this run.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "The new ShabbosCalendarPicker is fully working with all expected data-testids: shabbos-picker-trigger, shabbos-picker-menu, shabbos-cal-prev, shabbos-cal-next, shabbos-cal-this-week, and shabbos-cell-<YYYY-MM-DD> for every day. The selected-shabbos selection persists into the Sales page parsha header and reloads the week's auction items. Yom-tov chips (RH, Sukkos, Shmini Atzeres, Simchas Torah) render in the correct cells. Only nit: header Hebrew-month label can be off-by-one when Gregorian months straddle Rosh Chodesh.",
+  "rca of the issue": "No defects requiring RCA — feature implementation matches the spec end-to-end. The only minor observation (Hebrew-month header for July 2026 showing Av instead of Tamuz) is caused by middleDayHebrew = gregorianToHebrew(days[14]) — using the 15th-day Hebrew month — which lands in Av by mid-July 2026 even though most July Shabbosos are still in Tamuz."
+}

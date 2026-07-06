@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: aliah-tracker-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DB_NAME
+        value: auction_ledger
+      - key: MONGO_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false

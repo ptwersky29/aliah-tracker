@@ -1,0 +1,160 @@
+{
+  "theme": "Light",
+  "archetype": "1 - Organic & Earthy",
+  "mood": "Old leather pinkas (synagogue ledger) meets modern fintech. Dignified, warm, tabular, historical.",
+  "global_rules": [
+    "Strictly RTL-first layout (`dir=\"rtl\"` on html or root container).",
+    "All interactive elements MUST have `data-testid` attributes in kebab-case based on role.",
+    "NO pure white (#FFFFFF) backgrounds for main surfaces; use warm parchment tones.",
+    "NO generic SaaS dashboard purple, mint, or teal.",
+    "NO Inter, Roboto, or Open Sans. Use the specified typography pairings.",
+    "Use Phosphor Icons (duotone or thin weight) for a refined, classic feel."
+  ],
+  "colors": {
+    "background": {
+      "base": "#F6F4EB",
+      "surface": "#FCFAF5",
+      "surface_alt": "#EBE7DB"
+    },
+    "text": {
+      "primary": "#1A1614",
+      "secondary": "#5C5346",
+      "muted": "#8A8171"
+    },
+    "brand": {
+      "primary": "#4A1525",
+      "primary_hover": "#360F1B",
+      "accent": "#B58A3F",
+      "accent_hover": "#946F30",
+      "tekheles": "#1C3F60"
+    },
+    "status": {
+      "debt_alert": "#8B2E2E",
+      "paid_success": "#2D5A4C",
+      "warning": "#C7822B"
+    },
+    "borders": {
+      "default": "#D9D2C2",
+      "focus": "#B58A3F"
+    }
+  },
+  "typography": {
+    "font_families": {
+      "heading": "'Frank Ruhl Libre', 'Cormorant Garamond', serif",
+      "body": "'Assistant', 'IBM Plex Sans', sans-serif",
+      "mono": "'Space Mono', 'IBM Plex Mono', monospace"
+    },
+    "scale": {
+      "h1": "text-4xl md:text-5xl tracking-tight leading-none font-bold text-brand-primary",
+      "h2": "text-2xl md:text-3xl tracking-tight text-text-primary",
+      "h3": "text-xl md:text-2xl text-text-primary",
+      "body": "text-base leading-relaxed",
+      "small": "text-sm tracking-wide text-text-secondary",
+      "price": "font-mono tracking-tight text-lg md:text-xl font-semibold",
+      "overline": "text-xs tracking-[0.15em] uppercase text-brand-accent font-bold"
+    }
+  },
+  "spacing_and_layout": {
+    "philosophy": "Generous spacing. The bento grid mode 'Control Room' for dashboards. 'Tactile & Crisp' surface strategy.",
+    "sidebar": "Right-aligned fixed sidebar (width: 280px). Background: Deep Ink-Burgundy (#4A1525) with Gold (#B58A3F) text accents, or pure Parchment with Ink text.",
+    "container_padding": "p-6 md:p-10",
+    "card_padding": "p-6 md:p-8",
+    "grid_dashboard": "grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6",
+    "border_radius": "rounded-sm md:rounded-md",
+    "shadows": {
+      "card": "shadow-[0_2px_10px_rgba(26,22,20,0.04)]",
+      "hover": "shadow-[0_8px_30px_rgba(26,22,20,0.08)]",
+      "dropdown": "shadow-[0_4px_20px_rgba(26,22,20,0.12)]"
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-brand-primary text-[#FCFAF5] hover:bg-brand-primary_hover rounded-sm px-6 py-2 transition-colors font-medium border border-transparent",
+      "secondary": "bg-transparent border-2 border-brand-accent text-brand-primary hover:bg-brand-accent hover:text-[#FCFAF5] rounded-sm px-6 py-2 transition-all",
+      "ghost": "hover:bg-background-surface_alt text-text-secondary hover:text-text-primary px-4 py-2 transition-colors rounded-sm",
+      "auction_chip": "bg-background-surface border border-borders-default hover:-translate-y-1 hover:shadow-card hover:border-brand-accent text-lg font-mono px-4 py-3 rounded-md cursor-pointer transition-all active:scale-95"
+    },
+    "cards": {
+      "base": "bg-background-surface border border-borders-default rounded-md p-6 relative overflow-hidden",
+      "metric": "flex flex-col gap-2",
+      "metric_value": "text-3xl font-mono text-text-primary",
+      "metric_label": "text-sm font-sans text-text-secondary"
+    },
+    "tables": {
+      "container": "w-full text-right border-collapse",
+      "header": "border-b-2 border-brand-primary text-text-secondary font-serif text-lg py-3 px-4",
+      "row": "border-b border-borders-default hover:bg-background-surface_alt transition-colors",
+      "cell": "py-4 px-4 text-base",
+      "price_cell": "font-mono text-text-primary font-medium"
+    },
+    "badges": {
+      "debt": "bg-[#8B2E2E]/10 text-[#8B2E2E] px-2 py-1 rounded-sm text-xs font-bold",
+      "paid": "bg-[#2D5A4C]/10 text-[#2D5A4C] px-2 py-1 rounded-sm text-xs font-bold",
+      "aliyah": "bg-brand-accent/15 text-brand-primary px-3 py-1 rounded-full text-sm font-serif border border-brand-accent/30"
+    },
+    "inputs": {
+      "base": "bg-background-base border border-borders-default rounded-sm px-4 py-2 focus:outline-none focus:border-brand-accent focus:ring-1 focus:ring-brand-accent transition-all text-text-primary placeholder:text-text-muted"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "layout": "Control Room grid. Top section: Parsha Banner (full width). Middle: 4 summary cards (Total Owed, Total Paid, Balance, Collection Rate). Bottom: Weekly Sales Chart (span 2) + Debt Alerts Feed (span 1).",
+      "parsha_banner": "Relative container. Background uses subtle parchment texture image with a dark burgundy overlay mask. Large Frank Ruhl Libre typography for the current Parsha name."
+    },
+    "sales_auction_mode": {
+      "layout": "Two-column bento. Right (Main): Live Auction Entry. Left (Side): Recent sales feed / Likely buyers.",
+      "live_entry": "Massive typography for current price. Grid of quick-price chips (£10, £18, £25...) and increment chips (+5, +10...). Customer search input massive and focused.",
+      "smart_suggestions": "AI suggested buyers appear as subtle badges under the input, easily clickable."
+    },
+    "sales_list_mode": {
+      "layout": "Full width table layout. Top action bar with filters and 'Switch to Auction Mode' button. Table shows Top Buyers highlighted."
+    },
+    "customers": {
+      "layout": "Data-heavy list layout. Top right: 'Add Customer' primary CTA. Table columns: Name, Total Debt (colored red if > £200), Last Payment, Actions.",
+      "debt_alert": "Visual indicator (icon + text color) for customers with > £200 debt."
+    },
+    "customer_detail": {
+      "layout": "Header: Customer Name + Debt Status + 'Download Statement' CTA. Below: 3-tab layout (Sales | Extras | Payments).",
+      "forms": "Inline forms for Add Payment (with dropdown to link specific sale) and Add Extra."
+    },
+    "products": {
+      "layout": "Card grid or list for standard Aliyos (Kohen, Levi, Shlishi, etc.). Ability to add custom products. Elegant badges for each product type."
+    },
+    "calendar": {
+      "layout": "4 Tabs. Tab 1: Month Grid (Gregorian + Hebrew side-by-side, today highlighted, parsha noted on Saturdays). Tab 2: Parshiyos List. Tab 3: Yomim Tovim. Tab 4: Aliyos Catalog."
+    },
+    "transactions": {
+      "layout": "Master ledger view. Powerful filter bar at top. Table combines sales, payments, and extras. Chronological order."
+    }
+  },
+  "media": {
+    "images_urls": [
+      {
+        "url": "https://images.pexels.com/photos/16557322/pexels-photo-16557322.jpeg",
+        "description": "High-resolution aged paper texture. Use as a very subtle background for the Parsha Banner with a multiply/overlay blend mode to give it a 'pinkas' feel.",
+        "category": "background_texture"
+      },
+      {
+        "url": "https://images.pexels.com/photos/5986452/pexels-photo-5986452.jpeg",
+        "description": "Synagogue interior architecture with arches. Can be used gracefully with heavy opacity reduction (10-15%) in empty states or the login screen background.",
+        "category": "empty_state_ambient"
+      },
+      {
+        "url": "https://images.pexels.com/photos/2248589/pexels-photo-2248589.jpeg",
+        "description": "Crumpled gold foil texture. Use strictly as a masked background for the 'Premium/Top Buyer' badges or the primary highlight chip, ensuring text contrast.",
+        "category": "accent_texture"
+      }
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Install `@phosphor-icons/react` and use it exclusively for iconography.",
+    "Implement the entire UI wrapped in a `dir=\"rtl\"` container. Ensure margins and paddings follow RTL logic (e.g., `mr-` instead of `ml-`, or better yet, use logical properties like `ms-` and `me-` if Tailwind version supports, else standard tailwind RTL prefix `rtl:ml-` etc).",
+    "Load Google Fonts: 'Frank Ruhl Libre', 'Cormorant Garamond', 'Assistant', 'IBM Plex Sans', and 'Space Mono'.",
+    "DO NOT use generic Shadcn components out of the box if they rely heavily on LTR assumptions. Adjust their alignments or build custom components following the HTML/Tailwind strategy.",
+    "Prioritize tabular numbers (`font-mono` or `font-variant-numeric: tabular-nums`) for all monetary values.",
+    "Add `data-testid` to EVERY button, input, and interactive tab.",
+    "All text sizes should be explicit, do not rely on browser defaults.",
+    "If implementing Recharts for the Weekly Sales Chart, ensure the Y-axis is on the right side to respect RTL reading order, and tooltips are formatted with the £ symbol.",
+    "All currency must be formatted as British Pounds (£)."
+  ]
+}

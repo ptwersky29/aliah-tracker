@@ -1,0 +1,56 @@
+{
+  "summary": "Iteration 3 — frontend-only test of the new Excel/CSV ImportModal wired into Customers and Sales pages. 10 Playwright scenarios run end-to-end against the deployed preview URL. Result: 9/10 functionally pass, BUT a CRITICAL date-parsing bug was discovered in Sales imports: every imported sale ends up with the wrong week (e.g. CSV says 2026-06-27 → DB stores 2028-03-04). Customers import is fully working (template happy-path, flexible column synonyms, error-row skipping, all valid). Modal close/cancel/choose-other-file all work. Sanity pages (Dashboard, Products, Calendar, Transactions) load without errors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Sales Excel/CSV import — week column",
+        "issue": "CRITICAL: Sales imported via the modal land on the wrong Shabbos. CSV column 'week=2026-06-27' is stored as week='2028-03-04' in MongoDB. Verified by curl /api/snapshot after the import: 4 rows have week='2028-03-04' (a Saturday ~615 days in the future) instead of 2026-06-27. Both the preview AND the persisted sale carry the wrong date — so the bug is in the parser, not the renderer. Affects EVERY sales import whose week column is in ISO YYYY-MM-DD form, including the modal's own downloadable template.",
+        "affected_selectors": ["[data-testid=import-sales-btn]", "[data-testid=import-confirm-btn]"]
+      },
+      {
+        "flow": "Sales import — fuzzy customer match by first name (Hebrew)",
+        "issue": "MEDIUM: A CSV row whose customer column is just 'יצחק' (existing seeded customer 'יצחק פערל' is present) is shown in the preview as '(unknown)' rather than resolved. resolveCustomer in ImportModal.jsx falls through to the contains match but appears to miss the Hebrew first-name-only case for this customer. (English first-name-only 'David' was also tested and ended in the same state.)",
+        "affected_selectors": ["[data-testid=import-modal]"]
+      }
+    ],
+    "design_issues": [
+      {"screen": "Dashboard", "issues": ["Recharts width(-1)/height(-1) console warnings persist (carry-over)"]},
+      {"screen": "Transactions", "issues": ["Date filters still native HTML5 mm/dd/yyyy (carry-over from iteration 2)"]}
+    ]
+  },
+  "test_report_links": [
+    "/tmp/import_test/customers_template.csv",
+    "/tmp/import_test/customers_flexible.csv",
+    "/tmp/import_test/customers_with_error.csv",
+    "/tmp/import_test/sales_template.csv",
+    "/tmp/import_test/sales_fuzzy.csv",
+    "/tmp/import_test/sales_week_snap.csv",
+    "/tmp/import_test/sales_prices.csv",
+    "/tmp/import_test/sales_unknown_product.csv"
+  ],
+  "action_items": [
+    "HIGH PRIORITY: Fix ImportModal.jsx::toShabbosISO() date parsing. Root cause: when SheetJS parses a CSV with cellDates:true and the cell is later read with raw:false, SheetJS reformats the underlying date using the US 'm/d/yy' locale (so '2026-06-27' from the CSV becomes '6/27/26' inside the modal). The fallback branch in toShabbosISO assumes DD/MM/YYYY ordering: const [a,b,c] = s.split(/[\\/\\-]/); d = new Date(yy, parseInt(b)-1, parseInt(a)). With a=6, b=27 that produces new Date(2026, 26, 6) which JS rolls into March 6 2028 → snap to 2028-03-04. Fix options: (a) pass cellDates:false to XLSX.read AND remove cellDates from sheet_to_json so the raw '2026-06-27' string is delivered intact; or (b) detect M/D vs D/M by checking which token is >12; or (c) when XLSX provides a serial number/Date, use XLSX.SSF.parse_date_code for safe Y/M/D extraction. Until fixed, the Sales import template (which itself ships YYYY-MM-DD) is unusable.",
+    "MEDIUM: resolveCustomer in ImportModal.jsx does not consistently match a single-token first name (Hebrew or English). Existing 'יצחק פערל' was not found when CSV row said only 'יצחק'. Suggest tightening the first_name pass to compare with normalised case-insensitive equality (already does) — but also confirm the customers prop actually contains the customer (the modal receives `customers={customers}` from Sales.jsx — verify the prop is not stale or filtered).",
+    "Clean-up: 4 phantom sales now sit at week=2028-03-04 in the DB as a side-effect of testing; consider deleting them or re-seeding."
+  ],
+  "critical_code_review_comments": [
+    "ImportModal.jsx is well-organised (~555 lines) — column-alias map, pickColumn, resolveProduct, resolveCustomer, toShabbosISO, then the React component. Good use of useMemo for the parsed preview and a useRef'd hidden <input type=file>. Every interactive element has data-testid. UX is excellent: drag-drop, template download, per-row OK/error icons, error summary list, progress counter, undo via choose-other.",
+    "BUG (HIGH): toShabbosISO assumes day-first slash dates but XLSX hands it month-first US-formatted strings — see action items.",
+    "MINOR: parseFile uses readAsBinaryString (deprecated). Prefer readAsArrayBuffer + XLSX.read(data, {type:'array'}).",
+    "MINOR: doImport loops sequentially with await per row — for large imports this is slow. Consider Promise.all or a server-side bulk endpoint (POST /api/customers/bulk, /api/sales/bulk).",
+    "MINOR: 'custom:' product_id may collide on the backend if it has any uniqueness assumption — verify the backend accepts arbitrary product_id strings."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "n/a (frontend-only test as requested)",
+    "frontend": "90% — 9/10 scenarios pass functionally; 1 critical date-parsing bug breaks Sales-import week persistence."
+  },
+  "test_credentials": "None — app has no authentication.",
+  "seed_data_creation": "No new seed; tests added ~8 customers (Moshe Levi, אהרן Goldberg, רבקה Stern, Chaim Weiss, Miriam Klein, + the three template rows) and 4 sales rows that ended up on week=2028-03-04 (the bug).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "After main agent fixes toShabbosISO date parsing, re-run /tmp/import_test/sales_template.csv via the Sales page Import button. Verify (a) the preview row shows week '2026-06-27' (not 2028-03-04), and (b) after Import, curl REACT_APP_BACKEND_URL/api/snapshot shows new sales with week='2026-06-27'. Also re-test /tmp/import_test/sales_week_snap.csv (input 2026-06-24 Wed → expected snapped 2026-06-27 Sat). Customers import flow is fully working; no re-test needed there. data-testids on the modal: import-customers-btn, import-sales-btn, import-modal, import-dropzone, import-file-input, import-template-btn, import-choose-other, import-cancel-btn, import-close-btn, import-confirm-btn.",
+  "rca of the issue": "Sales import week corruption — RCA: ImportModal.jsx parses CSV via XLSX.read(..., type:'binary', cellDates:true) then XLSX.utils.sheet_to_json(..., raw:false). SheetJS treats '2026-06-27' as a date cell and, with raw:false, returns its US-formatted .w string (m/d/yy → '6/27/26'). toShabbosISO falls through the ISO regex (since the string no longer starts with 4 digits), matches the slash regex, and splits '6/27/26' as [a='6', b='27', c='26']. It then calls new Date(2026, 27-1, 6) — JS month overflow rolls 26 months past Jan 2026 into March 2028. After snapping to nearest Saturday, the value becomes 2028-03-04 and is sent to /api/sales. Reproduction: open /sales → Import → upload the modal's own downloaded template → Import 4 rows → curl /api/snapshot shows 4 sales with week='2028-03-04'. Mitigation: pass {type:'binary', cellDates:false} to XLSX.read and {raw:true} (or {raw:false, dateNF:'yyyy-mm-dd'}) to sheet_to_json so YYYY-MM-DD strings reach the parser intact; alternatively rewrite the slash branch to detect M/D vs D/M by looking for any token >12."
+}
