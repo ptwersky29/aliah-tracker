@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import List, Optional
 
 import asyncpg
+from urllib.parse import urlparse, urlencode, parse_qs
 from dotenv import load_dotenv
 from fastapi import APIRouter, FastAPI, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
@@ -22,7 +23,12 @@ from starlette.middleware.cors import CORSMiddleware
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
-DATABASE_URL = os.environ["DATABASE_URL"]
+_raw_db_url = os.environ["DATABASE_URL"]
+_parsed = urlparse(_raw_db_url)
+_qs = parse_qs(_parsed.query, keep_blank_values=True)
+_qs.pop("channel_binding", None)
+_clean_qs = urlencode(_qs, doseq=True)
+DATABASE_URL = _parsed._replace(query=_clean_qs).geturl()
 db_pool = None
 
 app = FastAPI(title="Auction Ledger")
