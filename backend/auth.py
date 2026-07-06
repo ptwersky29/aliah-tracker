@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS users (
     last_login TEXT NOT NULL
 );
 ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT DEFAULT '';
+ALTER TABLE users ALTER COLUMN google_id DROP NOT NULL;
 """
 
 
