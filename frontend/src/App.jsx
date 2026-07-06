@@ -20,8 +20,8 @@ const queryClient = new QueryClient({
 });
 
 function ProtectedRoute({ children }) {
-  const loggedIn = localStorage.getItem("pinkas_logged_in") === "true";
-  if (!loggedIn) return <Navigate to="/login" replace />;
+  const token = localStorage.getItem("pinkas_token");
+  if (!token) return <Navigate to="/login" replace />;
   return children;
 }
 

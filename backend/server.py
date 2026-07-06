@@ -14,10 +14,12 @@ from pathlib import Path
 from typing import List, Optional
 
 from dotenv import load_dotenv
-from fastapi import APIRouter, FastAPI, HTTPException
+from fastapi import APIRouter, Depends, FastAPI, HTTPException
 from psycopg_pool import AsyncConnectionPool
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.middleware.cors import CORSMiddleware
+
+from auth import get_current_user, router as auth_router, USERS_TABLE_SQL
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -26,7 +28,7 @@ DATABASE_URL = os.environ["DATABASE_URL"]
 db_pool = None
 
 app = FastAPI(title="Auction Ledger")
-api = APIRouter(prefix="/api")
+api = APIRouter(prefix="/api", dependencies=[Depends(get_current_user)])
 
 
 def _now_iso() -> str:
@@ -125,6 +127,10 @@ async def startup():
     db_pool = AsyncConnectionPool(DATABASE_URL, min_size=1, max_size=5, open=True)
     async with db_pool.connection() as conn:
         for stmt in TABLES_SQL.split(";"):
+            s = stmt.strip()
+            if s:
+                await conn.execute(s + ";")
+        for stmt in USERS_TABLE_SQL.split(";"):
             s = stmt.strip()
             if s:
                 await conn.execute(s + ";")
@@ -486,6 +492,7 @@ async def root():
     return {"name": "Auction Ledger", "status": "ok"}
 
 
+app.include_router(auth_router)
 app.include_router(api)
 app.add_middleware(
     CORSMiddleware,

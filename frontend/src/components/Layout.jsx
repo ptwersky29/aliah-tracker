@@ -1,7 +1,7 @@
 import React from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
-  LayoutDashboard, Gavel, Users, Package, CalendarDays, ScrollText, BookMarked,
+  LayoutDashboard, Gavel, Users, Package, CalendarDays, ScrollText, BookMarked, LogOut,
 } from "lucide-react";
 import { classNames, getCurrentShabbos, getParshaForWeek, formatGregorianYiddish } from "../lib/jewishCalendar";
 import { formatHebrewDate, gregorianToHebrew } from "../lib/hebrewCalendar";
@@ -16,11 +16,17 @@ const nav = [
 ];
 
 export default function Layout() {
+  const navigate = useNavigate();
   const today = new Date();
   const isoToday = today.toISOString().slice(0, 10);
   const shabbos = getCurrentShabbos();
   const parsha = getParshaForWeek(shabbos);
   const heb = gregorianToHebrew(isoToday);
+
+  const handleSignOut = () => {
+    localStorage.removeItem("pinkas_token");
+    navigate("/login");
+  };
 
   return (
     <div className="min-h-screen bg-canvas text-ink-900 font-sans">
@@ -80,8 +86,19 @@ export default function Layout() {
           ))}
         </nav>
 
+        {/* Sign out */}
+        <div className="px-3 pb-1">
+          <button
+            onClick={handleSignOut}
+            className="flex items-center gap-3 w-full px-3.5 py-2.5 rounded-md text-sm font-semibold text-white/50 hover:bg-white/5 hover:text-white/90 transition-all"
+          >
+            <LogOut className="w-4 h-4 shrink-0" strokeWidth={1.8} />
+            <span>Sign out</span>
+          </button>
+        </div>
+
         {/* Footer parsha plate */}
-        <div className="mx-3 mb-4 mt-2 border border-white/10 rounded-md bg-white/5 px-4 py-3">
+        <div className="mx-3 mb-4 border border-white/10 rounded-md bg-white/5 px-4 py-3">
           <p className="text-[10px] uppercase tracking-[0.16em] text-emerald-500 font-bold">This Shabbos</p>
           <p className="font-hebrew text-xl mt-1 leading-none text-white">{parsha.yiddish}</p>
           <p className="text-[11px] text-white/55 mt-1.5">{formatGregorianYiddish(shabbos)}</p>

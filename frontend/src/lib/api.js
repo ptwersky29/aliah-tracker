@@ -5,6 +5,14 @@ export const API = `${BACKEND_URL}/api`;
 
 const http = axios.create({ baseURL: API, headers: { "Content-Type": "application/json" } });
 
+http.interceptors.request.use((config) => {
+  const token = localStorage.getItem("pinkas_token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 function crud(path) {
   return {
     list: async () => (await http.get(`/${path}`)).data,
