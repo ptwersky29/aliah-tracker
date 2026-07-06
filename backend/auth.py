@@ -188,7 +188,7 @@ async def google_callback(code: Optional[str] = None, error: Optional[str] = Non
         )
 
     token = create_jwt(user_id, email)
-    redirect_url = f"{FRONTEND_URL.rstrip('/')}/login?token={token}"
+    redirect_url = f"{FRONTEND_URL}/login?{urlencode({'token': token})}"
     return RedirectResponse(url=redirect_url)
 
 
