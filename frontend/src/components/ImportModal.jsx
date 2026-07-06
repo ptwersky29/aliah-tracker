@@ -4,7 +4,7 @@ import * as XLSX from "xlsx";
 import { Upload, FileSpreadsheet, Check, AlertTriangle, X, Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import api from "../lib/api";
-import { STANDARD_ALIYOS, fullName, classNames, getCurrentShabbos, getParshaForWeek } from "../lib/jewishCalendar";
+import { STANDARD_ALIYOS, fullName, classNames, getCurrentShabbos, getParshaForWeek, YT_BY_DATE } from "../lib/jewishCalendar";
 
 // ---------------------------------------------------------------------------
 // Column-name normalisation — accept the most common variants people will use
@@ -123,18 +123,24 @@ function toShabbosISO(value) {
     }
   }
   if (!d || isNaN(d.getTime())) return null;
-  // Snap to nearest Saturday (Sat=6). If already Sat, keep.
+  // Format YYYY-MM-DD in local time (avoid UTC shift)
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const iso = `${y}-${m}-${dd}`;
+  // If it's a Yom Tov date, keep it as-is
+  if (YT_BY_DATE[iso]) return iso;
+  // Otherwise snap to nearest Saturday (Sat=6)
   const day = d.getDay();
   if (day !== 6) {
     const fwd = (6 - day + 7) % 7;
     const back = (day - 6 + 7) % 7;
     d.setDate(d.getDate() + (fwd <= back ? fwd : -back));
   }
-  // Format YYYY-MM-DD in local time (avoid UTC shift)
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${dd}`;
+  const y2 = d.getFullYear();
+  const m2 = String(d.getMonth() + 1).padStart(2, "0");
+  const dd2 = String(d.getDate()).padStart(2, "0");
+  return `${y2}-${m2}-${dd2}`;
 }
 
 // ---------------------------------------------------------------------------

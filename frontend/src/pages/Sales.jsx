@@ -2,8 +2,8 @@ import React, { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "../lib/api";
 import {
-  STANDARD_ALIYOS, getCurrentShabbos, getParshaForWeek, formatGregorianYiddish,
-  classNames, fullName,
+  STANDARD_ALIYOS, getNextSaleableDate, getParshaForWeek, formatGregorianYiddish,
+  classNames, fullName, YT_BY_DATE, YOM_TOV_COLORS,
 } from "../lib/jewishCalendar";
 import { Gavel, List, Check, Undo2, Trash2, Search, BookOpen, Upload } from "lucide-react";
 import { toast } from "sonner";
@@ -93,7 +93,7 @@ function LikelyBuyers({ customers, allSales, productId, onPick }) {
   );
 }
 
-function AuctionMode({ week, customers, products, weekSales, allSales }) {
+function AuctionMode({ week, yt, customers, products, weekSales, allSales }) {
   const qc = useQueryClient();
   const items = [...STANDARD_ALIYOS, ...products.map((p) => ({ id: p.id, label: p.name, isCustom: true, default_price: p.default_price }))];
 
@@ -305,7 +305,7 @@ function AuctionMode({ week, customers, products, weekSales, allSales }) {
         )}
 
         <div className="flex items-center justify-between px-5 py-4 bg-surface2 rounded-md border border-line">
-          <span className="text-xs font-bold text-ink-500 uppercase tracking-widest">This Shabbos total</span>
+          <span className="text-xs font-bold text-ink-500 uppercase tracking-widest">{yt ? "Yom Tov total" : "This Shabbos total"}</span>
           <span className="font-mono text-3xl font-bold text-brand-900 tabular-nums" data-testid="week-total">£{weekTotal.toFixed(2)}</span>
         </div>
       </div>
@@ -313,7 +313,7 @@ function AuctionMode({ week, customers, products, weekSales, allSales }) {
   );
 }
 
-function ListMode({ parsha, weekSales }) {
+function ListMode({ parsha, yt, weekSales }) {
   const qc = useQueryClient();
   const handleDelete = async (id) => {
     await api.sales.remove(id);
@@ -333,7 +333,7 @@ function ListMode({ parsha, weekSales }) {
   }, [weekSales]);
 
   if (!weekSales.length) {
-    return <div className="card py-16 text-center text-ink-400">No sales yet for this Shabbos.</div>;
+    return <div className="card py-16 text-center text-ink-400">No sales yet for {yt ? yt.yiddish : "this Shabbos"}.</div>;
   }
 
   return (
@@ -355,7 +355,7 @@ function ListMode({ parsha, weekSales }) {
       <div className="card overflow-hidden">
         <div className="px-6 py-4 border-b border-line flex items-center justify-between">
           <h3 className="text-lg font-bold text-ink-900">
-            <span className="font-hebrew">{parsha.yiddish}</span> · {weekSales.length} sales
+            <span className="font-hebrew">{yt ? yt.yiddish : parsha.yiddish}</span> · {weekSales.length} sales
           </h3>
           <p className="font-mono text-brand-700 text-lg font-bold tabular-nums">£{total.toFixed(2)}</p>
         </div>
@@ -387,7 +387,7 @@ function ListMode({ parsha, weekSales }) {
 }
 
 export default function Sales() {
-  const [week, setWeek] = useState(getCurrentShabbos());
+  const [week, setWeek] = useState(getNextSaleableDate());
   const [mode, setMode] = useState("auction");
   const [importOpen, setImportOpen] = useState(false);
   const { data } = useQuery({ queryKey: ["snapshot"], queryFn: api.snapshot });
@@ -395,7 +395,8 @@ export default function Sales() {
   const customers = data?.customers || [];
   const products = data?.products || [];
   const sales = data?.sales || [];
-  const parsha = getParshaForWeek(week);
+  const yt = YT_BY_DATE[week] || null;
+  const parsha = yt ? null : getParshaForWeek(week);
   const weekSales = sales.filter((s) => s.week === week);
   const weekTotal = weekSales.reduce((a, s) => a + (s.price || 0), 0);
 
@@ -403,16 +404,28 @@ export default function Sales() {
     <div className="px-8 md:px-12 py-10 max-w-[1400px]">
       <div className="flex flex-wrap items-end justify-between gap-5 mb-8">
         <div>
-          <p className="kicker mb-2">Weekly Auction</p>
+          <p className="kicker mb-2">{yt ? "Yom Tov Auction" : "Weekly Auction"}</p>
           <h1 className="text-3xl md:text-4xl font-bold text-ink-900 tracking-tight">Auction</h1>
           <div className="flex items-center gap-2 mt-3 text-sm text-ink-500 flex-wrap">
             <BookOpen className="w-4 h-4 text-brand-700" />
-            <span className="font-hebrew font-semibold text-ink-900 text-base">{parsha.yiddish}</span>
-            <span>·</span>
-            <span>{parsha.book}</span>
+            {yt ? (
+              <>
+                <span className="font-hebrew font-semibold text-ink-900 text-base">{yt.yiddish}</span>
+                <span>·</span>
+                <span className={classNames("text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider", YOM_TOV_COLORS[yt.type] || "")}>
+                  {yt.type}
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="font-hebrew font-semibold text-ink-900 text-base">{parsha.yiddish}</span>
+                <span>·</span>
+                <span>{parsha.book}</span>
+                {parsha.note && <span className="badge-warn">{parsha.note}</span>}
+              </>
+            )}
             <span>·</span>
             <span>{formatGregorianYiddish(week)}</span>
-            {parsha.note && <span className="badge-warn">{parsha.note}</span>}
           </div>
         </div>
 
@@ -451,9 +464,9 @@ export default function Sales() {
           <p className="text-sm mt-1">Please add customers before starting the auction.</p>
         </div>
       ) : mode === "auction" ? (
-        <AuctionMode week={week} customers={customers} products={products} weekSales={weekSales} allSales={sales} />
+        <AuctionMode week={week} yt={yt} customers={customers} products={products} weekSales={weekSales} allSales={sales} />
       ) : (
-        <ListMode parsha={parsha} weekSales={weekSales} />
+        <ListMode parsha={parsha} yt={yt} weekSales={weekSales} />
       )}
 
       <ImportModal open={importOpen} onClose={() => setImportOpen(false)} kind="sales" customers={customers} products={products} />

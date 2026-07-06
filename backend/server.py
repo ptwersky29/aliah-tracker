@@ -314,6 +314,8 @@ async def seed():
                 offset_to_sat = (5 - today.weekday()) % 7
                 last_sat = today + _dt.timedelta(days=offset_to_sat - 7)
                 weeks = [(last_sat - _dt.timedelta(days=7 * i)).isoformat() for i in range(4)]
+                yomim_tovim = ["2025-09-22","2025-09-23","2025-10-06","2025-10-07","2025-10-13","2025-10-14","2026-04-02","2026-04-03","2026-04-08","2026-04-09","2026-05-22","2026-05-23"]
+                weeks = yomim_tovim + weeks
                 aliyos = [("kohen","כהן",36),("levi","לוי",18),("shlishi","שלישי",25),("revii","רביעי",36),("chamishi","חמישי",18),("shishi","שישי",50),("shvii","שביעי",72),("maftir","מפטיר",100),("hagbah","הגבה",18),("glilah","גלילה",10)]
                 for wi, week in enumerate(weeks):
                     for ai, (pid, plabel, base) in enumerate(aliyos[:8-wi%2]):

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  getParshaForWeek, formatGregorianYiddish, classNames, getCurrentShabbos,
-  YOMIM_TOVIM, YOM_TOV_COLORS, PARSHA_SCHEDULE_5786, PARSHIYOS,
+  getParshaForWeek, formatGregorianYiddish, classNames, getNextSaleableDate,
+  YOM_TOV_COLORS, YT_BY_DATE, PARSHA_SCHEDULE_5786, PARSHIYOS,
 } from "../lib/jewishCalendar";
 import {
   gregorianToHebrew, getMonthWithHebrew, toHebrewNumeral,
@@ -12,8 +12,6 @@ import { ChevronDown, ChevronLeft, ChevronRight, BookOpen, Calendar as CalIcon }
 const WEEK_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const GREG_MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
-const YT_BY_DATE = {};
-YOMIM_TOVIM.forEach((y) => { if (y.date) YT_BY_DATE[y.date] = y; });
 const PARSHA_BY_SHABBOS = {};
 Object.entries(PARSHA_SCHEDULE_5786).forEach(([d, id]) => { PARSHA_BY_SHABBOS[d] = PARSHIYOS.find((p) => p.id === id); });
 
@@ -80,16 +78,18 @@ export default function ShabbosCalendarPicker({ value, onChange }) {
   }, [days]);
 
   const today = new Date().toISOString().slice(0, 10);
-  const parshaSel = getParshaForWeek(value);
+  const ytSel = YT_BY_DATE[value] || null;
+  const parshaSel = ytSel ? null : getParshaForWeek(value);
   const hebSel = useMemo(() => gregorianToHebrew(value), [value]);
 
   const prev = () => { if (month === 1) { setMonth(12); setYear((y) => y - 1); } else setMonth((m) => m - 1); };
   const next = () => { if (month === 12) { setMonth(1); setYear((y) => y + 1); } else setMonth((m) => m + 1); };
-  const goToday = () => { onChange(getCurrentShabbos()); setOpen(false); };
+  const goNextEvent = () => { onChange(getNextSaleableDate()); setOpen(false); };
 
   const pickCell = (iso) => {
+    const yt = YT_BY_DATE[iso];
     const d = new Date(iso + "T12:00:00");
-    if (d.getDay() !== 6) return; // only Shabbosos pickable
+    if (d.getDay() !== 6 && !yt) return; // only Shabbosos and Yom Tov pickable
     onChange(iso);
     setOpen(false);
   };
@@ -103,9 +103,11 @@ export default function ShabbosCalendarPicker({ value, onChange }) {
       >
         <div className="min-w-0">
           <p className="text-[10px] uppercase tracking-widest text-brand-600 font-bold flex items-center gap-1">
-            <CalIcon className="w-3 h-3" /> Parshas · Shabbos
+            <CalIcon className="w-3 h-3" /> {ytSel ? "Yom Tov" : "Parshas · Shabbos"}
           </p>
-          <p className="font-hebrew text-base font-semibold text-ink-900 leading-tight truncate">{parshaSel.yiddish}</p>
+          <p className="font-hebrew text-base font-semibold text-ink-900 leading-tight truncate">
+            {ytSel ? ytSel.yiddish : parshaSel.yiddish}
+          </p>
           <p className="text-[11px] text-ink-400 font-mono">
             {formatGregorianYiddish(value)} · <span className="font-hebrew">{formatHebrewDate(hebSel)}</span>
           </p>
@@ -151,14 +153,14 @@ export default function ShabbosCalendarPicker({ value, onChange }) {
                 const yt = YT_BY_DATE[cell.date];
                 const p = isShabbos ? (PARSHA_BY_SHABBOS[cell.date] || getParshaForWeek(cell.date)) : null;
                 const isRoshChodesh = cell.hebrew.day === 1;
-                const clickable = isShabbos;
+                const clickable = isShabbos || !!yt;
                 return (
                   <button
                     key={di}
                     onClick={() => clickable && pickCell(cell.date)}
                     data-testid={`shabbos-cell-${cell.date}`}
                     disabled={!clickable}
-                    aria-label={`${WEEK_SHORT[di]} ${GREG_MONTHS[month - 1]} ${cell.day} ${year} · ${toHebrewNumeral(cell.hebrew.day)} ${getHebrewMonthName(cell.hebrew.month, cell.hebrew.year)}${p ? ` · Parshas ${p.yiddish}` : ""}${yt ? ` · ${yt.yiddish}` : ""}`}
+                    aria-label={`${WEEK_SHORT[di]} ${GREG_MONTHS[month - 1]} ${cell.day} ${year} · ${toHebrewNumeral(cell.hebrew.day)} ${getHebrewMonthName(cell.hebrew.month, cell.hebrew.year)}${p && !yt ? ` · Parshas ${p.yiddish}` : ""}${yt ? ` · ${yt.yiddish}` : ""}`}
                     className={classNames(
                       "min-h-14 p-1 text-left transition-all flex flex-col gap-0.5 border-r border-line last:border-0",
                       clickable && "hover:bg-brand-50 cursor-pointer",
@@ -166,6 +168,7 @@ export default function ShabbosCalendarPicker({ value, onChange }) {
                       isSelected && "bg-brand-900 text-white ring-2 ring-inset ring-brand-700 shadow-inner",
                       !isSelected && isToday && "bg-amber-50",
                       !isSelected && !isToday && isShabbos && "bg-brand-50/40",
+                      !isSelected && !isToday && !isShabbos && yt && "bg-tekheles/[0.04]",
                     )}
                   >
                     <div className="flex items-start justify-between">
@@ -207,11 +210,11 @@ export default function ShabbosCalendarPicker({ value, onChange }) {
               <span className="inline-block w-2.5 h-2.5 rounded-full bg-brand-900 ml-2"></span> Selected
             </div>
             <button
-              onClick={goToday}
-              data-testid="shabbos-cal-this-week"
+              onClick={goNextEvent}
+              data-testid="shabbos-cal-next-event"
               className="text-xs font-semibold text-brand-700 hover:text-brand-900 transition-colors flex items-center gap-1"
             >
-              <BookOpen className="w-3 h-3" /> This Shabbos
+              <BookOpen className="w-3 h-3" /> Next Event
             </button>
           </div>
         </div>
