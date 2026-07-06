@@ -117,6 +117,16 @@ def _check_frontend_url():
         raise HTTPException(503, "FRONTEND_URL is not configured.")
 
 
+@router.get("/health")
+async def auth_health():
+    return {
+        "ok": True,
+        "google_configured": bool(GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET),
+        "jwt_configured": bool(JWT_SECRET),
+        "frontend_configured": bool(FRONTEND_URL),
+    }
+
+
 @router.get("/google")
 async def google_login():
     _check_google_config()
