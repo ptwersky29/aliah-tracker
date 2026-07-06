@@ -28,20 +28,23 @@ export default function Products() {
         active: true,
       });
       setName(""); setDefaultPrice("");
-      qc.invalidateQueries({ queryKey: ["snapshot"] });
+      await qc.invalidateQueries({ queryKey: ["snapshot"] });
+      await qc.refetchQueries({ queryKey: ["snapshot"] });
       toast.success("Product added");
     } finally { setSaving(false); }
   };
 
   const handleDelete = async (id) => {
     await api.products.remove(id);
-    qc.invalidateQueries({ queryKey: ["snapshot"] });
+    await qc.invalidateQueries({ queryKey: ["snapshot"] });
+    await qc.refetchQueries({ queryKey: ["snapshot"] });
   };
 
   const startEdit = (p) => { setEditingId(p.id); setEditName(p.name); setEditPrice(p.default_price ?? ""); };
   const saveEdit = async () => {
     await api.products.update(editingId, { name: editName.trim(), default_price: editPrice ? parseFloat(editPrice) : null });
-    qc.invalidateQueries({ queryKey: ["snapshot"] });
+    await qc.invalidateQueries({ queryKey: ["snapshot"] });
+    await qc.refetchQueries({ queryKey: ["snapshot"] });
     setEditingId(null);
   };
 

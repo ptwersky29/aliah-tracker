@@ -54,7 +54,8 @@ export default function CustomerDetail() {
         amount: parseFloat(payAmount), date: payDate, notes: payNote,
         item_id: linkedSale?.id || null, item_name: linkedSale?.product_name || null,
       });
-      qc.invalidateQueries({ queryKey: ["snapshot"] });
+      await qc.invalidateQueries({ queryKey: ["snapshot"] });
+      await qc.refetchQueries({ queryKey: ["snapshot"] });
       setPayAmount(""); setPayNote(""); setPayItemId("");
       toast.success("Payment recorded");
     } finally { setSavingPay(false); }
@@ -68,15 +69,16 @@ export default function CustomerDetail() {
         customer_id: id, customer_name: fullName(customer),
         description: extraDesc.trim(), amount: parseFloat(extraAmount), date: extraDate,
       });
-      qc.invalidateQueries({ queryKey: ["snapshot"] });
+      await qc.invalidateQueries({ queryKey: ["snapshot"] });
+      await qc.refetchQueries({ queryKey: ["snapshot"] });
       setExtraDesc(""); setExtraAmount("");
       toast.success("Extra charge recorded");
     } finally { setSavingExtra(false); }
   };
 
-  const deleteSale = async (sid) => { await api.sales.remove(sid); qc.invalidateQueries({ queryKey: ["snapshot"] }); };
-  const deletePayment = async (pid) => { await api.payments.remove(pid); qc.invalidateQueries({ queryKey: ["snapshot"] }); };
-  const deleteExtra = async (eid) => { await api.extras.remove(eid); qc.invalidateQueries({ queryKey: ["snapshot"] }); };
+  const deleteSale = async (sid) => { await api.sales.remove(sid); await qc.invalidateQueries({ queryKey: ["snapshot"] }); await qc.refetchQueries({ queryKey: ["snapshot"] }); };
+  const deletePayment = async (pid) => { await api.payments.remove(pid); await qc.invalidateQueries({ queryKey: ["snapshot"] }); await qc.refetchQueries({ queryKey: ["snapshot"] }); };
+  const deleteExtra = async (eid) => { await api.extras.remove(eid); await qc.invalidateQueries({ queryKey: ["snapshot"] }); await qc.refetchQueries({ queryKey: ["snapshot"] }); };
 
   const transactions = useMemo(() => {
     const all = [

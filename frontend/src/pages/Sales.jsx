@@ -128,7 +128,8 @@ function AuctionMode({ week, yt, customers, products, weekSales, allSales }) {
         price: parseFloat(price),
       });
       setLastSaved({ id: created.id, label: aliyah?.label || prod?.name, customerName: fullName(cust), price: parseFloat(price) });
-      qc.invalidateQueries({ queryKey: ["snapshot"] });
+      await qc.invalidateQueries({ queryKey: ["snapshot"] });
+      await qc.refetchQueries({ queryKey: ["snapshot"] });
       setPrice("");
       setCustomerId("");
       const idx = items.findIndex((i) => i.id === selectedId);
@@ -144,14 +145,16 @@ function AuctionMode({ week, yt, customers, products, weekSales, allSales }) {
   const handleUndo = async () => {
     if (!lastSaved) return;
     await api.sales.remove(lastSaved.id);
-    qc.invalidateQueries({ queryKey: ["snapshot"] });
+    await qc.invalidateQueries({ queryKey: ["snapshot"] });
+    await qc.refetchQueries({ queryKey: ["snapshot"] });
     setLastSaved(null);
     toast("Last sale undone");
   };
 
   const handleDelete = async (id) => {
     await api.sales.remove(id);
-    qc.invalidateQueries({ queryKey: ["snapshot"] });
+    await qc.invalidateQueries({ queryKey: ["snapshot"] });
+    await qc.refetchQueries({ queryKey: ["snapshot"] });
     if (lastSaved?.id === id) setLastSaved(null);
   };
 
@@ -317,7 +320,8 @@ function ListMode({ parsha, yt, weekSales }) {
   const qc = useQueryClient();
   const handleDelete = async (id) => {
     await api.sales.remove(id);
-    qc.invalidateQueries({ queryKey: ["snapshot"] });
+    await qc.invalidateQueries({ queryKey: ["snapshot"] });
+    await qc.refetchQueries({ queryKey: ["snapshot"] });
   };
   const total = weekSales.reduce((a, s) => a + (s.price || 0), 0);
 

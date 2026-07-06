@@ -19,14 +19,24 @@ import "./App.css";
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: false } },
+  defaultOptions: {
+    queries: {
+      staleTime: 0,
+      refetchOnWindowFocus: false,
+      retry: 2,
+    },
+  },
 });
 
 function AuthTokenProvider({ children }) {
-  const { getToken } = useAuth();
+  const { getToken, isSignedIn } = useAuth();
   useEffect(() => {
     setTokenGetter(() => getToken());
-  }, [getToken]);
+    // Once signed in, make sure any previously-failed queries get retried
+    if (isSignedIn) {
+      queryClient.invalidateQueries();
+    }
+  }, [getToken, isSignedIn]);
   return children;
 }
 
@@ -50,8 +60,8 @@ function App() {
 
   return (
     <ClerkProvider publishableKey={clerkPubKey} afterSignInUrl="/app" afterSignUpUrl="/app">
-      <AuthTokenProvider>
-        <QueryClientProvider client={queryClient}>
+      <QueryClientProvider client={queryClient}>
+        <AuthTokenProvider>
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Landing />} />
@@ -69,8 +79,8 @@ function App() {
             </Routes>
           </BrowserRouter>
           <Toaster richColors position="top-center" dir="rtl" />
-        </QueryClientProvider>
-      </AuthTokenProvider>
+        </AuthTokenProvider>
+      </QueryClientProvider>
     </ClerkProvider>
   );
 }
