@@ -25,6 +25,11 @@ db_pool = None
 
 app = FastAPI(title="Auction Ledger")
 
+
+@app.get("/ping")
+async def ping():
+    return {"pong": True, "ok": True}
+
 # ---------------------------------------------------------------------------
 # Auth configuration & helpers
 # ---------------------------------------------------------------------------
