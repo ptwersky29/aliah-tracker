@@ -9,7 +9,7 @@ import ImportModal from "../components/ImportModal";
 
 export default function Customers() {
   const qc = useQueryClient();
-  const { data } = useQuery({ queryKey: ["snapshot"], queryFn: api.snapshot });
+  const { data } = useQuery({ queryKey: ["snapshot"], queryFn: api.snapshot, staleTime: 0 });
   const customers = data?.customers || [];
   const sales = data?.sales || [];
   const payments = data?.payments || [];
@@ -51,20 +51,23 @@ export default function Customers() {
     try {
       await api.customers.create({ first_name: firstName.trim(), last_name: lastName.trim(), phone: phone.trim() });
       setFirstName(""); setLastName(""); setPhone("");
-      qc.invalidateQueries({ queryKey: ["snapshot"] });
+      await qc.invalidateQueries({ queryKey: ["snapshot"] });
+      await qc.refetchQueries({ queryKey: ["snapshot"] });
       toast.success("Customer added");
     } finally { setSaving(false); }
   };
 
   const handleDelete = async (id) => {
     await api.customers.remove(id);
-    qc.invalidateQueries({ queryKey: ["snapshot"] });
+    await qc.invalidateQueries({ queryKey: ["snapshot"] });
+    await qc.refetchQueries({ queryKey: ["snapshot"] });
   };
 
   const handleBulkDelete = async () => {
     if (!window.confirm(`Delete ${selected.size} customers?`)) return;
     await Promise.all([...selected].map((id) => api.customers.remove(id)));
-    qc.invalidateQueries({ queryKey: ["snapshot"] });
+    await qc.invalidateQueries({ queryKey: ["snapshot"] });
+    await qc.refetchQueries({ queryKey: ["snapshot"] });
     setSelected(new Set());
     toast.success(`${selected.size} customers deleted`);
   };
@@ -72,7 +75,8 @@ export default function Customers() {
   const startEdit = (c) => { setEditingId(c.id); setEdit({ first_name: c.first_name || "", last_name: c.last_name || "", phone: c.phone || "", notes: c.notes || "" }); };
   const saveEdit = async () => {
     await api.customers.update(editingId, edit);
-    qc.invalidateQueries({ queryKey: ["snapshot"] });
+    await qc.invalidateQueries({ queryKey: ["snapshot"] });
+    await qc.refetchQueries({ queryKey: ["snapshot"] });
     setEditingId(null);
     toast.success("Customer updated");
   };

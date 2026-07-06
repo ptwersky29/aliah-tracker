@@ -358,7 +358,8 @@ export default function ImportModal({ open, onClose, kind, customers = [], produ
         inserted++;
         setProgress({ done: inserted, total: parsed.valid });
       }
-      qc.invalidateQueries({ queryKey: ["snapshot"] });
+      await qc.invalidateQueries({ queryKey: ["snapshot"] });
+      await qc.refetchQueries({ queryKey: ["snapshot"] });
       toast.success(`Imported ${inserted} ${kind === "customers" ? "customers" : "sales"}${skipped ? ` (skipped ${skipped})` : ""}`);
       reset();
       onClose();
