@@ -13,13 +13,13 @@ from pydantic import BaseModel
 
 load_dotenv()
 
-GOOGLE_CLIENT_ID = os.environ["GOOGLE_CLIENT_ID"]
-GOOGLE_CLIENT_SECRET = os.environ["GOOGLE_CLIENT_SECRET"]
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
 GOOGLE_REDIRECT_URI = os.environ.get(
-    "GOOGLE_REDIRECT_URI", "http://localhost:8000/api/auth/google/callback"
+    "GOOGLE_REDIRECT_URI", ""
 )
-JWT_SECRET = os.environ["JWT_SECRET"]
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+JWT_SECRET = os.environ.get("JWT_SECRET", "")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRE_HOURS = 72
 
@@ -66,6 +66,7 @@ class LoginInput(BaseModel):
 
 
 def create_jwt(user_id: str, email: str) -> str:
+    _check_jwt_secret()
     now = datetime.now(timezone.utc)
     payload = {
         "sub": user_id,
@@ -99,8 +100,26 @@ async def get_current_user(request: Request) -> dict:
     return user
 
 
+def _check_google_config():
+    if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+        raise HTTPException(503, "Google OAuth is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.")
+    if not GOOGLE_REDIRECT_URI:
+        raise HTTPException(503, "GOOGLE_REDIRECT_URI is not configured.")
+
+
+def _check_jwt_secret():
+    if not JWT_SECRET:
+        raise HTTPException(503, "JWT_SECRET is not configured.")
+
+
+def _check_frontend_url():
+    if not FRONTEND_URL:
+        raise HTTPException(503, "FRONTEND_URL is not configured.")
+
+
 @router.get("/google")
 async def google_login():
+    _check_google_config()
     params = {
         "client_id": GOOGLE_CLIENT_ID,
         "redirect_uri": GOOGLE_REDIRECT_URI,
@@ -117,6 +136,9 @@ async def google_login():
 async def google_callback(code: Optional[str] = None, error: Optional[str] = None):
     from server import _execute, _fetchrow, _new_id, _now_iso
 
+    _check_google_config()
+    _check_jwt_secret()
+    _check_frontend_url()
     if error or not code:
         raise HTTPException(400, f"Google OAuth error: {error or 'no code'}")
 
@@ -175,6 +197,7 @@ async def google_callback(code: Optional[str] = None, error: Optional[str] = Non
 async def register(payload: RegisterInput):
     from server import _execute, _fetchrow, _new_id, _now_iso
 
+    _check_jwt_secret()
     name = payload.name.strip()
     email = payload.email.strip().lower()
     if not name or not email or not payload.password:
@@ -200,6 +223,7 @@ async def register(payload: RegisterInput):
 async def login(payload: LoginInput):
     from server import _execute, _fetchrow, _now_iso
 
+    _check_jwt_secret()
     email = payload.email.strip().lower()
     if not email or not payload.password:
         raise HTTPException(400, "Email and password are required")
