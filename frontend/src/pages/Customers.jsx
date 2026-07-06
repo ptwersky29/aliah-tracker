@@ -102,7 +102,7 @@ export default function Customers() {
           <span className="text-sm font-bold text-danger-700">{highDebt.length} customers with balance over £200:</span>
           <div className="flex gap-2 flex-wrap">
             {highDebt.slice(0, 5).map((c) => (
-              <Link key={c.id} to={`/customers/${c.id}`} className="badge-debt hover:opacity-80 transition" data-testid={`high-debt-${c.id}`}>
+              <Link key={c.id} to={`/app/customers/${c.id}`} className="badge-debt hover:opacity-80 transition" data-testid={`high-debt-${c.id}`}>
                 <span className="font-hebrew">{fullName(c)}</span> · £{c.balance.toFixed(0)}
               </Link>
             ))}
@@ -196,7 +196,7 @@ export default function Customers() {
                         {(c.first_name || c.name || "?").charAt(0)}
                       </span>
                       <div>
-                        <Link to={`/customers/${c.id}`} className="font-hebrew text-[15px] font-semibold text-ink-900 hover:text-brand-700 transition-colors">{fullName(c)}</Link>
+                        <Link to={`/app/customers/${c.id}`} className="font-hebrew text-[15px] font-semibold text-ink-900 hover:text-brand-700 transition-colors">{fullName(c)}</Link>
                         {c.notes && <p className="text-xs text-ink-400 truncate max-w-44">{c.notes}</p>}
                       </div>
                     </div>
@@ -220,7 +220,7 @@ export default function Customers() {
                       <button onClick={() => handleDelete(c.id)} className="p-2 rounded-md text-ink-400 hover:text-danger-600 hover:bg-surface2 transition-colors" data-testid={`delete-customer-${c.id}`}>
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
-                      <Link to={`/customers/${c.id}`} className="p-2 rounded-md text-ink-400 hover:text-brand-700 transition-colors">
+                      <Link to={`/app/customers/${c.id}`} className="p-2 rounded-md text-ink-400 hover:text-brand-700 transition-colors">
                         <ChevronRight className="w-3.5 h-3.5" />
                       </Link>
                     </div>

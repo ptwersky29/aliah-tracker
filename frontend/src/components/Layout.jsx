@@ -7,12 +7,12 @@ import { classNames, getCurrentShabbos, getParshaForWeek, formatGregorianYiddish
 import { formatHebrewDate, gregorianToHebrew } from "../lib/hebrewCalendar";
 
 const nav = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard, testid: "nav-dashboard" },
-  { to: "/sales", label: "Auction", icon: Gavel, testid: "nav-sales" },
-  { to: "/customers", label: "Customers", icon: Users, testid: "nav-customers" },
-  { to: "/products", label: "Products", icon: Package, testid: "nav-products" },
-  { to: "/calendar", label: "Calendar", icon: CalendarDays, testid: "nav-calendar" },
-  { to: "/transactions", label: "Transactions", icon: ScrollText, testid: "nav-transactions" },
+  { to: "/app", label: "Dashboard", icon: LayoutDashboard, testid: "nav-dashboard" },
+  { to: "/app/sales", label: "Auction", icon: Gavel, testid: "nav-sales" },
+  { to: "/app/customers", label: "Customers", icon: Users, testid: "nav-customers" },
+  { to: "/app/products", label: "Products", icon: Package, testid: "nav-products" },
+  { to: "/app/calendar", label: "Calendar", icon: CalendarDays, testid: "nav-calendar" },
+  { to: "/app/transactions", label: "Transactions", icon: ScrollText, testid: "nav-transactions" },
 ];
 
 export default function Layout() {

@@ -158,7 +158,7 @@ function AlertsPanel({ balances }) {
         {high.map((c) => (
           <Link
             key={c.id}
-            to={`/customers/${c.id}`}
+            to={`/app/customers/${c.id}`}
             className="flex items-center justify-between px-3 py-2.5 rounded-md border border-line hover:border-danger-500/40 hover:bg-danger-50/40 transition-all"
             data-testid={`alert-row-${c.id}`}
           >
@@ -243,7 +243,7 @@ function BalanceTable({ balances }) {
                       {(c.first_name || c.name || "?").charAt(0)}
                     </span>
                     <div>
-                      <Link to={`/customers/${c.id}`} className="font-hebrew text-[15px] font-semibold text-ink-900 hover:text-brand-700 transition-colors">
+                      <Link to={`/app/customers/${c.id}`} className="font-hebrew text-[15px] font-semibold text-ink-900 hover:text-brand-700 transition-colors">
                         {fullName(c)}
                       </Link>
                       {c.phone && <p className="text-[11px] text-ink-400 font-mono mt-0.5">{c.phone}</p>}
@@ -263,7 +263,7 @@ function BalanceTable({ balances }) {
                   )}
                 </td>
                 <td>
-                  <Link to={`/customers/${c.id}`} className="text-ink-400 hover:text-brand-700 transition-colors block">
+                  <Link to={`/app/customers/${c.id}`} className="text-ink-400 hover:text-brand-700 transition-colors block">
                     <ChevronRight className="w-4 h-4" />
                   </Link>
                 </td>

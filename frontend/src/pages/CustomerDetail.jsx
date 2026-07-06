@@ -113,7 +113,7 @@ export default function CustomerDetail() {
     <div className="px-8 md:px-12 py-10 max-w-[1300px]">
       {/* Header */}
       <div className="flex flex-wrap items-center gap-4 mb-8 animate-fade-in">
-        <Link to="/customers" className="p-2 rounded-md text-ink-500 hover:text-brand-700 hover:bg-surface2 transition-colors" data-testid="back-link">
+        <Link to="/app/customers" className="p-2 rounded-md text-ink-500 hover:text-brand-700 hover:bg-surface2 transition-colors" data-testid="back-link">
           <ChevronLeft className="w-5 h-5" />
         </Link>
         <div className="flex-1 min-w-0">

@@ -1,8 +1,10 @@
 import React, { useEffect } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 import Layout from "./components/Layout";
+import Landing from "./pages/Landing";
+import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Sales from "./pages/Sales";
 import Customers from "./pages/Customers";
@@ -17,8 +19,13 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: false } },
 });
 
+function ProtectedRoute({ children }) {
+  const loggedIn = localStorage.getItem("pinkas_logged_in") === "true";
+  if (!loggedIn) return <Navigate to="/login" replace />;
+  return children;
+}
+
 function App() {
-  // Auto-seed demo data on first load (idempotent on the backend)
   useEffect(() => {
     api.seed().catch(() => {});
   }, []);
@@ -27,14 +34,16 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<Login />} />
           <Route element={<Layout />}>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/sales" element={<Sales />} />
-            <Route path="/customers" element={<Customers />} />
-            <Route path="/customers/:id" element={<CustomerDetail />} />
-            <Route path="/products" element={<Products />} />
-            <Route path="/calendar" element={<Calendar />} />
-            <Route path="/transactions" element={<Transactions />} />
+            <Route path="/app" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/app/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
+            <Route path="/app/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
+            <Route path="/app/customers/:id" element={<ProtectedRoute><CustomerDetail /></ProtectedRoute>} />
+            <Route path="/app/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
+            <Route path="/app/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
+            <Route path="/app/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
           </Route>
         </Routes>
       </BrowserRouter>
