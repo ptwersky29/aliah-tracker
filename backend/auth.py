@@ -3,6 +3,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+import bcrypt
 import httpx
 import jwt
 from dotenv import load_dotenv
@@ -32,13 +33,15 @@ logger = logging.getLogger(__name__)
 USERS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
-    google_id TEXT NOT NULL UNIQUE,
-    email TEXT NOT NULL,
+    google_id TEXT DEFAULT NULL UNIQUE,
+    email TEXT NOT NULL UNIQUE,
     name TEXT DEFAULT '',
     avatar_url TEXT DEFAULT '',
+    password_hash TEXT DEFAULT '',
     created_date TEXT NOT NULL,
     last_login TEXT NOT NULL
 );
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT DEFAULT '';
 """
 
 
@@ -49,6 +52,17 @@ class UserOut(BaseModel):
     avatar_url: str
     created_date: str
     last_login: str
+
+
+class RegisterInput(BaseModel):
+    name: str
+    email: str
+    password: str
+
+
+class LoginInput(BaseModel):
+    email: str
+    password: str
 
 
 def create_jwt(user_id: str, email: str) -> str:
@@ -155,6 +169,55 @@ async def google_callback(code: Optional[str] = None, error: Optional[str] = Non
     token = create_jwt(user_id, email)
     redirect_url = f"{FRONTEND_URL}/login?token={token}"
     return RedirectResponse(url=redirect_url)
+
+
+@router.post("/register")
+async def register(payload: RegisterInput):
+    from server import _execute, _fetchrow, _new_id, _now_iso
+
+    name = payload.name.strip()
+    email = payload.email.strip().lower()
+    if not name or not email or not payload.password:
+        raise HTTPException(400, "Name, email, and password are required")
+    if len(payload.password) < 6:
+        raise HTTPException(400, "Password must be at least 6 characters")
+
+    existing = await _fetchrow('SELECT * FROM "users" WHERE email = %s', email)
+    if existing:
+        raise HTTPException(409, "An account with this email already exists")
+
+    pw_hash = bcrypt.hashpw(payload.password.encode(), bcrypt.gensalt()).decode()
+    user_id = _new_id()
+    await _execute(
+        'INSERT INTO "users" (id, email, name, password_hash, created_date, last_login) VALUES (%s,%s,%s,%s,%s,%s)',
+        user_id, email, name, pw_hash, _now_iso(), _now_iso(),
+    )
+    token = create_jwt(user_id, email)
+    return {"token": token, "user": {"id": user_id, "email": email, "name": name}}
+
+
+@router.post("/login")
+async def login(payload: LoginInput):
+    from server import _execute, _fetchrow, _now_iso
+
+    email = payload.email.strip().lower()
+    if not email or not payload.password:
+        raise HTTPException(400, "Email and password are required")
+
+    user = await _fetchrow('SELECT * FROM "users" WHERE email = %s', email)
+    if not user:
+        raise HTTPException(401, "Invalid email or password")
+
+    stored_hash = user.get("password_hash") or ""
+    if not stored_hash or not bcrypt.checkpw(payload.password.encode(), stored_hash.encode()):
+        raise HTTPException(401, "Invalid email or password")
+
+    await _execute('UPDATE "users" SET last_login = %s WHERE id = %s', _now_iso(), user["id"])
+    token = create_jwt(user["id"], user["email"])
+    return {
+        "token": token,
+        "user": {"id": user["id"], "email": user["email"], "name": user.get("name", "")},
+    }
 
 
 @router.get("/me", response_model=UserOut)

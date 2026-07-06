@@ -1,11 +1,19 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { BookMarked } from "lucide-react";
+import { BookMarked, Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react";
 import { API } from "../lib/api";
+import axios from "axios";
 
 export default function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const [mode, setMode] = useState("login");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const token = searchParams.get("token");
@@ -17,6 +25,34 @@ export default function Login() {
 
   const handleGoogleLogin = () => {
     window.location.href = `${API}/auth/google`;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+
+    if (!email.trim() || !password.trim() || (mode === "register" && !name.trim())) {
+      setError("Please fill in all fields.");
+      return;
+    }
+    if (mode === "register" && password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const endpoint = mode === "register" ? "register" : "login";
+      const body = mode === "register" ? { name: name.trim(), email: email.trim(), password } : { email: email.trim(), password };
+      const { data } = await axios.post(`${API}/auth/${endpoint}`, body);
+      localStorage.setItem("pinkas_token", data.token);
+      navigate("/app");
+    } catch (err) {
+      const msg = err?.response?.data?.detail || "Something went wrong. Please try again.";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -59,9 +95,12 @@ export default function Login() {
             </div>
           </div>
 
-          <h2 className="text-2xl font-bold text-ink-900 tracking-tight">Sign in</h2>
-          <p className="text-sm text-ink-500 mt-1.5 mb-8">Sign in with your Google account to access the app.</p>
+          <h2 className="text-2xl font-bold text-ink-900 tracking-tight">{mode === "login" ? "Sign in" : "Create account"}</h2>
+          <p className="text-sm text-ink-500 mt-1.5 mb-8">
+            {mode === "login" ? "Sign in with your email or Google account." : "Register to access the app."}
+          </p>
 
+          {/* Google button */}
           <button
             onClick={handleGoogleLogin}
             className="w-full inline-flex items-center justify-center gap-3 bg-white text-ink-900 hover:bg-surface2 border border-line2 px-5 py-3 rounded-lg text-sm font-semibold transition-all shadow-card"
@@ -75,7 +114,84 @@ export default function Login() {
             Sign in with Google
           </button>
 
-          <p className="text-xs text-ink-400 text-center mt-10">
+          {/* Divider */}
+          <div className="flex items-center gap-3 my-7">
+            <div className="flex-1 h-px bg-line2" />
+            <span className="text-xs font-semibold text-ink-400 uppercase tracking-widest">or</span>
+            <div className="flex-1 h-px bg-line2" />
+          </div>
+
+          {/* Email form */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {mode === "register" && (
+              <div>
+                <label className="label">Name</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => { setName(e.target.value); setError(""); }}
+                  placeholder="Your name"
+                  className="input w-full"
+                  autoFocus={mode === "register"}
+                />
+              </div>
+            )}
+            <div>
+              <label className="label">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); setError(""); }}
+                placeholder="you@shul.org"
+                className="input w-full"
+                autoFocus={mode === "login"}
+              />
+            </div>
+            <div>
+              <label className="label">Password</label>
+              <div className="relative">
+                <input
+                  type={showPw ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => { setPassword(e.target.value); setError(""); }}
+                  placeholder="••••••••"
+                  className="input w-full pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPw(!showPw)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-600"
+                >
+                  {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            {error && (
+              <p className="text-sm text-danger-600 bg-danger-50 border border-danger-500/20 px-3 py-2 rounded-md">{error}</p>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full inline-flex items-center justify-center gap-2 bg-brand-700 text-white hover:bg-brand-800 disabled:bg-brand-400 disabled:cursor-not-allowed px-5 py-3 rounded-lg text-sm font-bold transition-all shadow-card"
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              {mode === "login" ? "Sign in" : "Create account"}
+              {!loading && <ArrowRight className="w-4 h-4" />}
+            </button>
+          </form>
+
+          {/* Toggle mode */}
+          <p className="text-sm text-ink-500 text-center mt-6">
+            {mode === "login" ? (
+              <>Don't have an account?{" "}<button onClick={() => { setMode("register"); setError(""); }} className="font-semibold text-brand-700 hover:text-brand-800">Register</button></>
+            ) : (
+              <>Already have an account?{" "}<button onClick={() => { setMode("login"); setError(""); }} className="font-semibold text-brand-700 hover:text-brand-800">Sign in</button></>
+            )}
+          </p>
+
+          <p className="text-xs text-ink-400 text-center mt-6">
             This is a private system for authorised shul officers only.
           </p>
         </div>
