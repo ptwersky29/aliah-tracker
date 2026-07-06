@@ -64,6 +64,7 @@
   "scripts": {
     "start": "vite",
     "dev": "vite",
+    "prebuild": "node -e \"console.log('Node:', process.version)\"",
     "build": "vite build",
     "preview": "vite preview"
   },
