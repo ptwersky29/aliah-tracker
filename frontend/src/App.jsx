@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { ClerkProvider, SignedIn, SignedOut, useAuth } from "@clerk/clerk-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 import Layout from "./components/Layout";
@@ -12,43 +13,65 @@ import CustomerDetail from "./pages/CustomerDetail";
 import Products from "./pages/Products";
 import Calendar from "./pages/Calendar";
 import Transactions from "./pages/Transactions";
-import api from "./lib/api";
+import { setTokenGetter } from "./lib/api";
 import "./App.css";
+
+const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: false } },
 });
 
-function ProtectedRoute({ children }) {
-  const token = localStorage.getItem("pinkas_token");
-  if (!token) return <Navigate to="/login" replace />;
+function AuthTokenProvider({ children }) {
+  const { getToken } = useAuth();
+  useEffect(() => {
+    setTokenGetter(() => getToken());
+  }, [getToken]);
   return children;
+}
+
+function ProtectedLayout() {
+  return (
+    <>
+      <SignedIn>
+        <Layout />
+      </SignedIn>
+      <SignedOut>
+        <Navigate to="/login" replace />
+      </SignedOut>
+    </>
+  );
 }
 
 function App() {
   useEffect(() => {
-    api.seed().catch(() => {});
+    import("./lib/api").then(({ default: api }) => api.seed().catch(() => {}));
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Landing />} />
-          <Route path="/login" element={<Login />} />
-          <Route element={<Layout />}>
-            <Route path="/app" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/app/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
-            <Route path="/app/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
-            <Route path="/app/customers/:id" element={<ProtectedRoute><CustomerDetail /></ProtectedRoute>} />
-            <Route path="/app/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
-            <Route path="/app/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
-            <Route path="/app/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-      <Toaster richColors position="top-center" dir="rtl" />
-    </QueryClientProvider>
+    <ClerkProvider publishableKey={clerkPubKey} afterSignInUrl="/app" afterSignUpUrl="/app">
+      <AuthTokenProvider>
+        <QueryClientProvider client={queryClient}>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Landing />} />
+              <Route path="/login/*" element={<Login />} />
+              <Route path="/sign-up/*" element={<Login />} />
+              <Route element={<ProtectedLayout />}>
+                <Route path="/app" element={<Dashboard />} />
+                <Route path="/app/sales" element={<Sales />} />
+                <Route path="/app/customers" element={<Customers />} />
+                <Route path="/app/customers/:id" element={<CustomerDetail />} />
+                <Route path="/app/products" element={<Products />} />
+                <Route path="/app/calendar" element={<Calendar />} />
+                <Route path="/app/transactions" element={<Transactions />} />
+              </Route>
+            </Routes>
+          </BrowserRouter>
+          <Toaster richColors position="top-center" dir="rtl" />
+        </QueryClientProvider>
+      </AuthTokenProvider>
+    </ClerkProvider>
   );
 }
 

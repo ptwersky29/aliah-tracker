@@ -1,5 +1,6 @@
 import React from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useClerk } from "@clerk/clerk-react";
 import {
   LayoutDashboard, Gavel, Users, Package, CalendarDays, ScrollText, BookMarked, LogOut,
 } from "lucide-react";
@@ -17,6 +18,7 @@ const nav = [
 
 export default function Layout() {
   const navigate = useNavigate();
+  const { signOut } = useClerk();
   const today = new Date();
   const isoToday = today.toISOString().slice(0, 10);
   const shabbos = getCurrentShabbos();
@@ -24,7 +26,7 @@ export default function Layout() {
   const heb = gregorianToHebrew(isoToday);
 
   const handleSignOut = () => {
-    localStorage.removeItem("pinkas_token");
+    signOut();
     navigate("/login");
   };
 

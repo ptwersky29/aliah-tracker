@@ -1,14 +1,24 @@
 import axios from "axios";
 
-const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || "").replace(/\/+$/, "");
+const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
 export const API = `${BACKEND_URL}/api`;
+
+let _getToken = null;
+
+export function setTokenGetter(getter) {
+  _getToken = getter;
+}
 
 const http = axios.create({ baseURL: API, headers: { "Content-Type": "application/json" } });
 
-http.interceptors.request.use((config) => {
-  const token = localStorage.getItem("pinkas_token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+http.interceptors.request.use(async (config) => {
+  if (_getToken) {
+    try {
+      const token = await _getToken();
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    } catch {}
   }
   return config;
 });

@@ -1,14 +1,12 @@
-import hashlib
 import logging
 import os
-import secrets
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
 from dotenv import load_dotenv
-from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException
 from psycopg_pool import AsyncConnectionPool
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.middleware.cors import CORSMiddleware
@@ -20,7 +18,6 @@ DATABASE_URL = os.environ["DATABASE_URL"]
 db_pool = None
 
 app = FastAPI(title="Auction Ledger")
-api = APIRouter(prefix="/api")
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -30,17 +27,6 @@ def _now_iso():
 
 def _new_id():
     return str(uuid.uuid4())
-
-def _hash_password(password: str) -> str:
-    salt = secrets.token_hex(16)
-    h = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 100000)
-    return f"{salt}${h.hex()}"
-
-def _verify_password(password: str, stored: str) -> bool:
-    if "$" not in stored:
-        return False
-    salt, h = stored.split("$", 1)
-    return hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 100000).hex() == h
 
 # ---------------------------------------------------------------------------
 # Startup
@@ -68,14 +54,6 @@ CREATE TABLE IF NOT EXISTS extra_charges (
     id TEXT PRIMARY KEY, customer_id TEXT NOT NULL, customer_name TEXT DEFAULT '',
     description TEXT NOT NULL, amount REAL NOT NULL, date TEXT DEFAULT '',
     created_date TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS users (
-    id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, name TEXT DEFAULT '',
-    password_hash TEXT NOT NULL, created_date TEXT NOT NULL, last_login TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS tokens (
-    token TEXT PRIMARY KEY, user_id TEXT NOT NULL, email TEXT NOT NULL,
-    created TEXT NOT NULL
 );
 """
 
@@ -111,69 +89,6 @@ async def _fetchrow(sql, *args):
 async def _execute(sql, *args):
     async with db_pool.connection() as conn:
         await conn.execute(sql, args)
-
-# ---------------------------------------------------------------------------
-# Auth dependency
-# ---------------------------------------------------------------------------
-async def get_current_user(request: Request) -> dict:
-    auth = request.headers.get("Authorization", "")
-    if not auth.startswith("Bearer "):
-        raise HTTPException(401, "Not authenticated")
-    token = auth[7:]
-    row = await _fetchrow('SELECT * FROM tokens WHERE token = %s', token)
-    if not row:
-        raise HTTPException(401, "Invalid token")
-    user = await _fetchrow('SELECT * FROM users WHERE id = %s', row["user_id"])
-    if not user:
-        raise HTTPException(401, "User not found")
-    return {"id": user["id"], "email": user["email"], "name": user.get("name", "")}
-
-# ---------------------------------------------------------------------------
-# Auth routes (no JWT dependency)
-# ---------------------------------------------------------------------------
-@api.post("/auth/register")
-async def register(payload: dict):
-    email = payload.get("email", "").strip().lower()
-    password = payload.get("password", "")
-    name = payload.get("name", "").strip()
-    if not email or not password:
-        raise HTTPException(400, "Email and password required")
-    if len(password) < 6:
-        raise HTTPException(400, "Password must be at least 6 characters")
-    existing = await _fetchrow('SELECT * FROM users WHERE email = %s', email)
-    if existing:
-        raise HTTPException(409, "Email already registered")
-    uid = _new_id()
-    pw_hash = _hash_password(password)
-    now = _now_iso()
-    await _execute(
-        'INSERT INTO users (id, email, name, password_hash, created_date, last_login) VALUES (%s,%s,%s,%s,%s,%s)',
-        uid, email, name, pw_hash, now, now,
-    )
-    token = secrets.token_hex(32)
-    await _execute('INSERT INTO tokens (token, user_id, email, created) VALUES (%s,%s,%s,%s)', token, uid, email, now)
-    return {"token": token, "user": {"id": uid, "email": email, "name": name}}
-
-@api.post("/auth/login")
-async def login(payload: dict):
-    email = payload.get("email", "").strip().lower()
-    password = payload.get("password", "")
-    if not email or not password:
-        raise HTTPException(400, "Email and password required")
-    user = await _fetchrow('SELECT * FROM users WHERE email = %s', email)
-    if not user:
-        raise HTTPException(401, "Invalid email or password")
-    if not _verify_password(password, user["password_hash"]):
-        raise HTTPException(401, "Invalid email or password")
-    now = _now_iso()
-    await _execute('UPDATE users SET last_login = %s WHERE id = %s', now, user["id"])
-    token = secrets.token_hex(32)
-    await _execute('INSERT INTO tokens (token, user_id, email, created) VALUES (%s,%s,%s,%s)', token, user["id"], email, now)
-    return {"token": token, "user": {"id": user["id"], "email": user["email"], "name": user.get("name", "")}}
-
-@api.get("/auth/me")
-async def auth_me(current_user: dict = Depends(get_current_user)):
-    return current_user
 
 # ---------------------------------------------------------------------------
 # Models
@@ -278,14 +193,14 @@ class ExtraChargeCreate(BaseModel):
     date: Optional[str] = ""
 
 # ---------------------------------------------------------------------------
-# CRUD factory
+# CRUD endpoints
 # ---------------------------------------------------------------------------
 def _register_crud(table_name, model, create_model, update_model=None):
-    @api.get(f"/{table_name}", response_model=List[model])
+    @app.get(f"/api/{table_name}", response_model=List[model])
     async def list_items():
         return await _fetch(f'SELECT * FROM "{table_name}" ORDER BY created_date DESC')
 
-    @api.post(f"/{table_name}", response_model=model)
+    @app.post(f"/api/{table_name}", response_model=model)
     async def create_item(payload: create_model):
         obj = model(**payload.model_dump())
         d = obj.model_dump()
@@ -294,7 +209,7 @@ def _register_crud(table_name, model, create_model, update_model=None):
         await _execute(f'INSERT INTO "{table_name}" ({cols}) VALUES ({ph})', *d.values())
         return obj
 
-    @api.get(f"/{table_name}/{{item_id}}", response_model=model)
+    @app.get(f"/api/{table_name}/{{item_id}}", response_model=model)
     async def get_item(item_id: str):
         row = await _fetchrow(f'SELECT * FROM "{table_name}" WHERE id = %s', item_id)
         if not row:
@@ -302,7 +217,7 @@ def _register_crud(table_name, model, create_model, update_model=None):
         return row
 
     if update_model is not None:
-        @api.patch(f"/{table_name}/{{item_id}}", response_model=model)
+        @app.patch(f"/api/{table_name}/{{item_id}}", response_model=model)
         async def update_item(item_id: str, payload: update_model):
             updates = {k: v for k, v in payload.model_dump().items() if v is not None}
             if not updates:
@@ -321,7 +236,7 @@ def _register_crud(table_name, model, create_model, update_model=None):
                 raise HTTPException(404, "Not found")
             return dict(r)
 
-    @api.delete(f"/{table_name}/{{item_id}}")
+    @app.delete(f"/api/{table_name}/{{item_id}}")
     async def delete_item(item_id: str):
         async with db_pool.connection() as conn:
             cur = await conn.execute(f'DELETE FROM "{table_name}" WHERE id = %s', (item_id,))
@@ -338,7 +253,7 @@ _register_crud("extra_charges", ExtraCharge, ExtraChargeCreate)
 # ---------------------------------------------------------------------------
 # Snapshot, seed, wipe
 # ---------------------------------------------------------------------------
-@api.get("/snapshot")
+@app.get("/api/snapshot")
 async def snapshot():
     async with db_pool.connection() as conn:
         cur = await conn.execute('SELECT * FROM "customers" ORDER BY first_name ASC')
@@ -367,7 +282,7 @@ SAMPLE_PRODUCTS = [
     {"name": "בר־מצוה ברכה", "default_price": 180, "sort_order": 4},
 ]
 
-@api.post("/seed")
+@app.post("/api/seed")
 async def seed():
     inserted = {"customers": 0, "products": 0, "sales": 0, "payments": 0, "extra_charges": 0}
     async with db_pool.connection() as conn:
@@ -424,21 +339,20 @@ async def seed():
                 inserted["extra_charges"] += 1
     return {"ok": True, "inserted": inserted}
 
-@api.post("/wipe")
+@app.post("/api/wipe")
 async def wipe():
     async with db_pool.connection() as conn:
         for name in ["customers","products","sales","payments","extra_charges"]:
             await conn.execute(f'DELETE FROM "{name}"')
     return {"ok": True}
 
-@api.get("/")
+@app.get("/api/")
 async def root():
     return {"name": "Auction Ledger", "status": "ok"}
 
 # ---------------------------------------------------------------------------
-# Mount
+# CORS
 # ---------------------------------------------------------------------------
-app.include_router(api)
 app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=os.environ.get("CORS_ORIGINS","*").split(","), allow_methods=["*"], allow_headers=["*"])
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
