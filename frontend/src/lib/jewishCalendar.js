@@ -128,29 +128,6 @@ export function getCurrentShabbos(d = new Date()) {
   return sh.toISOString().slice(0, 10);
 }
 
-export const YT_BY_DATE = {};
-YOMIM_TOVIM.forEach((y) => { if (y.date) YT_BY_DATE[y.date] = y; });
-
-export function getYomTovForDate(dateStr) {
-  return YT_BY_DATE[dateStr] || null;
-}
-
-export function isYomTov(dateStr) {
-  return !!YT_BY_DATE[dateStr];
-}
-
-export function getNextSaleableDate(d = new Date()) {
-  const nextShabbos = getCurrentShabbos(d);
-  const today = d.toISOString().slice(0, 10);
-  const futureYomTov = YOMIM_TOVIM
-    .filter((yt) => yt.date >= today)
-    .sort((a, b) => a.date.localeCompare(b.date));
-  if (futureYomTov.length > 0 && futureYomTov[0].date < nextShabbos) {
-    return futureYomTov[0].date;
-  }
-  return nextShabbos;
-}
-
 export const JEWISH_DAYS = ["זונטיק", "מאָנטיק", "דינסטיק", "מיטוואָך", "דאַנערשטיק", "פֿרײַטיק", "שבת קודש"];
 
 const YID_MONTHS = ["יאנואר","פעברואר","מאַרץ","אַפּריל","מאַי","יוני","יולי","אויגוסט","סעפּטעמבער","אָקטאָבער","נאָוועמבער","דעצעמבער"];
@@ -194,6 +171,29 @@ export const YOM_TOV_COLORS = {
   special: "bg-burgundy/10 text-burgundy border-burgundy/30",
   tishav: "bg-ink-700/15 text-ink-900 border-ink-700/40",
 };
+
+export const YT_BY_DATE = {};
+YOMIM_TOVIM.forEach((y) => { if (y.date) YT_BY_DATE[y.date] = y; });
+
+export function getYomTovForDate(dateStr) {
+  return YT_BY_DATE[dateStr] || null;
+}
+
+export function isYomTov(dateStr) {
+  return !!YT_BY_DATE[dateStr];
+}
+
+export function getNextSaleableDate(d = new Date()) {
+  const nextShabbos = getCurrentShabbos(d);
+  const today = d.toISOString().slice(0, 10);
+  const futureYomTov = YOMIM_TOVIM
+    .filter((yt) => yt.date >= today)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  if (futureYomTov.length > 0 && futureYomTov[0].date < nextShabbos) {
+    return futureYomTov[0].date;
+  }
+  return nextShabbos;
+}
 
 export function fullName(c) {
   if (!c) return "";
